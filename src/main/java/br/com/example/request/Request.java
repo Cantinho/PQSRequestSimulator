@@ -20,7 +20,7 @@ public class Request {
     private final static Logger LOGGER = LoggerFactory.getLogger(Request.class);
 
     /** url for connecting to the cloud service */
-    private final static String URL = "http://localhost:8081";
+    private final static String URL = "http://localhost:8080";
 
     private Request(){}
 
@@ -98,7 +98,7 @@ public class Request {
             // Send post request
             conn.setDoOutput(true);
             DataOutputStream dataOutputStream = new DataOutputStream(conn.getOutputStream());
-            dataOutputStream.writeBytes(body);
+            if (body != null) dataOutputStream.writeBytes(body);
             dataOutputStream.flush();
             dataOutputStream.close();
 

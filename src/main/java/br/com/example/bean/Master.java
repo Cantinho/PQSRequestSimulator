@@ -97,25 +97,13 @@ public class Master {
      * @param message
      * @return
      */
-    private String pc(Message message){
-        Map<String, String> headers = new HashMap<String, String>();
-        headers.put("Serial-Number", serialNumber);
+    private String pc(Message message, Map<String, String> headers){
         headers.put("Application-ID", message.getApplicationID());
         String body = message.getMessage();
 
         String response = POST("/pc", headers, body);
 
         return response;
-    }
-
-    public void run() {
-        String response = pull();
-        LOGGER.info("PULL CENTRAL-SN [" + serialNumber + "]: " + response);
-        if(!response.equals("{}")){
-            Message message = (new Gson()).fromJson(response, Message.class);
-            response = pc(message);
-            LOGGER.info("PC CENTRAL-SN [" + serialNumber + "] APP-ID [" + message.getApplicationID() + "]: " + response);
-        }
     }
 
     public String getSerialNumber() {
@@ -139,8 +127,11 @@ public class Master {
             String response = pull();
             LOGGER.info("PULL CENTRAL-SN [" + serialNumber + "]: " + response);
             if(!response.equals("{}")){
+                Map<String, String> headers = new HashMap<String, String>();
+                headers.put("Serial-Number", serialNumber);
+
                 Message message = (new Gson()).fromJson(response, Message.class);
-                response = pc(message);
+                response = pc(message, headers);
                 LOGGER.info("PC CENTRAL-SN [" + serialNumber + "] APP-ID [" + message.getApplicationID() + "]: " + response);
             }
         }
@@ -161,7 +152,13 @@ public class Master {
                     e.printStackTrace();
                 }
             }
-            // do push
+            Map<String, String> headers = new HashMap<String, String>();
+            headers.put("Serial-Number", serialNumber);
+            headers.put("Broadcast", "true");
+
+            Message message = new Message(serialNumber, null, String.valueOf(new Date().getTime()), "10", "7B43FFFBBBCCCAAADDD");
+            String response = pc(message, headers);
+            LOGGER.info("PC CENTRAL-SN [" + serialNumber + "] APP-ID [" + message.getApplicationID() + "]: " + response);
         }
 
         public void shutdown() {

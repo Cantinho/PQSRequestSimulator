@@ -13,32 +13,30 @@ import java.util.List;
 public class ExecuteRequests {
 
     /** number of centrals connected to the cloud service */
-    private final static int CENTRALS_AMOUNT = 10;
+    private final static int MASTERS_AMOUNT = 10;
     /** number of slaves allowed to speak to each central */
-    private final static int AMOUNT_OF_DEVICES_PER_CENTRAL = 3;
-    /** interval time in which each central is going to PULL */
-    private final static int PULLING_INTERVAL = 8;
-    /** interval time in which each device is going do execute a POST action */
-    private final static int PA_INTERVAL = 10;
+    private final static int AMOUNT_OF_SLAVE_PER_MASTER = 3;
 
     private static List<Master> masters;
     private static List<Slave> slaves;
 
-    /** We create the number of central defined above */
-    public static void executeCentrals(){
+    /** We create the number of masters defined above */
+    public static void executeMasters(){
         masters = new ArrayList<Master>();
-        for (int i = 0; i < CENTRALS_AMOUNT; i++){
+        for (int i = 0; i < MASTERS_AMOUNT; i++){
             Master master = new Master("SN-"+i);
+            master.init();
             masters.add(master);
             master.start();
         }
     }
-    /** for each central we create a new device accordingly to the amount defined above */
-    public static void executeDevices(){
+    /** for each master we create a new slave accordingly to the amount defined above */
+    public static void executeSlaves(){
         slaves = new ArrayList<Slave>();
-        for (int i = 0; i < CENTRALS_AMOUNT; i++){
-            for (int j = 0; j < AMOUNT_OF_DEVICES_PER_CENTRAL; j++){
+        for (int i = 0; i < MASTERS_AMOUNT; i++){
+            for (int j = 0; j < AMOUNT_OF_SLAVE_PER_MASTER; j++){
                 Slave slave = new Slave("APPID-"+j, "SN-"+i);
+                slave.init();
                 slaves.add(slave);
                 slave.start();
             }
@@ -68,8 +66,8 @@ public class ExecuteRequests {
     }
 
     public static void startAll() {
-        executeDevices();
-        executeCentrals();
+        executeSlaves();
+        executeMasters();
     }
 
     public static void stopAll() {
@@ -79,10 +77,11 @@ public class ExecuteRequests {
 
 
     /** good and old main method =P */
-    public static void main(String[] args){
+    public static void main(String[] args) throws InterruptedException {
 
         startAll();
         // TODO after some N secods we have to stop all threads and collect results.
+        Thread.sleep(50000);
         stopAll();
 
 

@@ -3,10 +3,7 @@ package br.com.example.bean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -60,7 +57,20 @@ public class Slave {
     }
 
     public void stop() {
-
+        Iterator<Future> runnableFutureIterator = runnableFutures.iterator();
+        while(runnableFutureIterator.hasNext()) {
+            try {
+                runnableFutureIterator.next().cancel(true);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        try {
+            runnableFutures.clear();
+            runnableFutures = null;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private Runnable createPuller() {
@@ -76,20 +86,15 @@ public class Slave {
      * executes POST /pa for devices
      * @return
      */
-    private String pa(){
+    private String pa(String body){
         Map<String, String> headers = new HashMap<String, String>();
         headers.put("Serial-Number", masterSerialNumber);
         headers.put("Application-ID", applicationID);
-        String body = "7B4CAAABBBCCCDDDEEEFFF";
+
 
         String response = POST("/pa", headers, body);
 
         return response;
-    }
-
-    public void run() {
-        String response = pa();
-        LOGGER.info("PA CENTRAL-SN [" + masterSerialNumber + "] APP-ID [" + applicationID + "]: " + response);
     }
 
     public String getApplicationID() {
@@ -119,7 +124,8 @@ public class Slave {
                 }
             }
 
-            // TODO call puller method here
+            String response = pa(null);
+            LOGGER.info("PA PULL CENTRAL-SN [" + masterSerialNumber + "] APP-ID [" + applicationID + "]: " + response);
         }
 
         public void shutdown() {
@@ -138,7 +144,10 @@ public class Slave {
                     e.printStackTrace();
                 }
             }
-            // TODO call push method here
+
+            String body = "7B4CAAABBBCCCDDDEEEFFF";
+            String response = pa(body);
+            LOGGER.info("PA POST CENTRAL-SN [" + masterSerialNumber + "] APP-ID [" + applicationID + "]: " + response);
         }
 
         public void shutdown() {
