@@ -14,15 +14,46 @@ import static br.com.example.request.Request.POST;
 /**
  * Created by jordao on 27/11/16.
  */
-public class Master implements Runnable {
+public class Master {
 
     private final static Logger LOGGER = LoggerFactory.getLogger(Master.class);
 
     private String serialNumber;
+    private final int minimumPullingInterval;
+    private final int pullingOffset;
+    private final int minimumPushingInterval;
+    private final int pushingOffset;
+    private Thread puller;
+    private Thread pusher;
+
+    public Master(String serialNumber, int minimumPullingInterval, int pullingOffset,
+                  int minimumPushingInterval, int pushingOffset) {
+        this.serialNumber = serialNumber;
+        this.minimumPullingInterval = minimumPullingInterval;
+        this.pullingOffset = pullingOffset;
+        this.minimumPushingInterval = minimumPushingInterval;
+        this.pushingOffset = pushingOffset;
+    }
 
     public Master(String serialNumber) {
-        this.serialNumber = serialNumber;
+        this(serialNumber, 8, 4, 4, 6);
     }
+
+    public void init() {
+
+    }
+
+    public void start() {
+
+    }
+
+    public void stop() {
+
+    }
+
+
+
+
 
     /**
      * executes GET /pull for centrals
