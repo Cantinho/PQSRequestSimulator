@@ -1,6 +1,6 @@
 package br.com.example;
 
-import br.com.example.bean.Central;
+import br.com.example.bean.Master;
 import br.com.example.bean.Device;
 
 import java.util.concurrent.Executors;
@@ -25,10 +25,10 @@ public class ExecuteRequests {
     /** We create the number of central defined above */
     public static void executeCentrals(){
         for (int i = 0; i < CENTRALS_AMOUNT; i++){
-            Central central = new Central("SN-"+i);
+            Master master = new Master("SN-"+i);
 
             ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
-            executor.scheduleAtFixedRate(central, 0, PULLING_INTERVAL, TimeUnit.SECONDS);
+            executor.scheduleAtFixedRate(master, 0, PULLING_INTERVAL, TimeUnit.SECONDS);
         }
     }
     /** for each central we create a new device accordingly to the amount defined above */

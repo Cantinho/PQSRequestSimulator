@@ -14,13 +14,13 @@ import static br.com.example.request.Request.POST;
 /**
  * Created by jordao on 27/11/16.
  */
-public class Central implements Runnable {
+public class Master implements Runnable {
 
-    private final static Logger LOGGER = LoggerFactory.getLogger(Central.class);
+    private final static Logger LOGGER = LoggerFactory.getLogger(Master.class);
 
     private String serialNumber;
 
-    public Central(String serialNumber) {
+    public Master(String serialNumber) {
         this.serialNumber = serialNumber;
     }
 
