@@ -45,7 +45,7 @@ public class ExecuteRequests {
 
     /** good and old main method =P */
     public static void main(String[] args){
-        //executeDevices();
+        executeDevices();
         executeCentrals();
     }
 

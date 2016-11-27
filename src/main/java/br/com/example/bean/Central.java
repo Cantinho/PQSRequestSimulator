@@ -60,7 +60,7 @@ public class Central implements Runnable {
         if(!response.equals("{}")){
             Message message = (new Gson()).fromJson(response, Message.class);
             response = pc(message);
-            LOGGER.error("PC CENTRAL-SN [" + serialNumber + "] APP-ID [" + message.getApplicationID() + "]: " + response);
+            LOGGER.info("PC CENTRAL-SN [" + serialNumber + "] APP-ID [" + message.getApplicationID() + "]: " + response);
         }
     }
 
