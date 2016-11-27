@@ -23,8 +23,8 @@ public class Master {
     private final int pullingOffset;
     private final int minimumPushingInterval;
     private final int pushingOffset;
-    private Thread puller;
-    private Thread pusher;
+    private Puller puller;
+    private Pusher pusher;
 
     public Master(String serialNumber, int minimumPullingInterval, int pullingOffset,
                   int minimumPushingInterval, int pushingOffset) {
@@ -40,15 +40,34 @@ public class Master {
     }
 
     public void init() {
-
+        puller = createPuller();
+        pusher = createPusher();
     }
 
     public void start() {
-
+        puller.run();
+        pusher.run();
     }
 
     public void stop() {
+        try {
+            puller.shutdown();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        try {
+            pusher.shutdown();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
+    private Puller createPuller() {
+        return new Puller();
+    }
+
+    private Pusher createPusher() {
+        return new Pusher();
     }
 
 
@@ -101,6 +120,49 @@ public class Master {
 
     public void setSerialNumber(String serialNumber) {
         this.serialNumber = serialNumber;
+    }
+
+    class Puller extends Thread implements Runnable {
+        private volatile boolean shutdown = false;
+        public void run() {
+            if(shutdown) {
+                try {
+                    Thread.currentThread().interrupt();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+            String response = pull();
+            LOGGER.info("PULL CENTRAL-SN [" + serialNumber + "]: " + response);
+            if(!response.equals("{}")){
+                Message message = (new Gson()).fromJson(response, Message.class);
+                response = pc(message);
+                LOGGER.info("PC CENTRAL-SN [" + serialNumber + "] APP-ID [" + message.getApplicationID() + "]: " + response);
+            }
+        }
+
+        public void shutdown() {
+            shutdown = true;
+        }
+    }
+
+
+    class Pusher extends Thread implements Runnable {
+        private volatile boolean shutdown = false;
+        public void run() {
+            if(shutdown) {
+                try {
+                    Thread.currentThread().interrupt();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+            // do push
+        }
+
+        public void shutdown() {
+            shutdown = true;
+        }
     }
 
 }
