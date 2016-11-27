@@ -67,16 +67,24 @@ public class ExecuteRequests {
         }
     }
 
+    public static void startAll() {
+        executeDevices();
+        executeCentrals();
+    }
+
+    public static void stopAll() {
+        stopMasters();
+        stopSlaves();
+    }
+
 
     /** good and old main method =P */
     public static void main(String[] args){
-        executeDevices();
-        executeCentrals();
 
+        startAll();
         // TODO after some N secods we have to stop all threads and collect results.
+        stopAll();
 
-        //stopMasters();
-        //stopSlaves();
 
     }
 
