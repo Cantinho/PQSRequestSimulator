@@ -5,8 +5,8 @@ import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.*;
 
 import static br.com.example.request.Request.GET;
 import static br.com.example.request.Request.POST;
@@ -19,20 +19,19 @@ public class Master {
     private final static Logger LOGGER = LoggerFactory.getLogger(Master.class);
 
     private String serialNumber;
-    private final int minimumPullingInterval;
-    private final int pullingOffset;
-    private final int minimumPushingInterval;
-    private final int pushingOffset;
-    private Puller puller;
-    private Pusher pusher;
+    private final int MINIMUM_PULLING_INTERVAL;
+    private final int PULLING_OFFSET;
+    private final int MINIMUM_PUSHING_INTERVAL;
+    private final int PUSHING_OFFSET;
+    private List<Future> runnableFutures;
 
     public Master(String serialNumber, int minimumPullingInterval, int pullingOffset,
                   int minimumPushingInterval, int pushingOffset) {
         this.serialNumber = serialNumber;
-        this.minimumPullingInterval = minimumPullingInterval;
-        this.pullingOffset = pullingOffset;
-        this.minimumPushingInterval = minimumPushingInterval;
-        this.pushingOffset = pushingOffset;
+        this.MINIMUM_PULLING_INTERVAL = minimumPullingInterval;
+        this.PULLING_OFFSET = pullingOffset;
+        this.MINIMUM_PUSHING_INTERVAL = minimumPushingInterval;
+        this.PUSHING_OFFSET = pushingOffset;
     }
 
     public Master(String serialNumber) {
@@ -40,38 +39,43 @@ public class Master {
     }
 
     public void init() {
-        puller = createPuller();
-        pusher = createPusher();
+        runnableFutures = new ArrayList<Future>();
     }
 
     public void start() {
-        puller.run();
-        pusher.run();
+        Runnable puller = createPuller();
+        Runnable pusher = createPusher();
+        ScheduledExecutorService executorService = Executors.newScheduledThreadPool(2);
+        Future<?> pullerFuture = executorService.scheduleAtFixedRate(puller, 0, MINIMUM_PULLING_INTERVAL, TimeUnit.SECONDS);
+        Future<?> pusherFuture = executorService.scheduleAtFixedRate(pusher, 0, MINIMUM_PUSHING_INTERVAL, TimeUnit.SECONDS);
+        runnableFutures.add(pullerFuture);
+        runnableFutures.add(pusherFuture);
     }
 
     public void stop() {
+        Iterator<Future> runnableFutureIterator = runnableFutures.iterator();
+        while(runnableFutureIterator.hasNext()) {
+            try {
+                runnableFutureIterator.next().cancel(true);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
         try {
-            puller.shutdown();
+            runnableFutures.clear();
+            runnableFutures = null;
         } catch (Exception e) {
             e.printStackTrace();
         }
-        try {
-            pusher.shutdown();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
-    private Puller createPuller() {
-        return new Puller();
+    private Runnable createPuller() {
+        return new MasterPuller();
     }
 
-    private Pusher createPusher() {
-        return new Pusher();
+    private Runnable createPusher() {
+        return new MasterPusher();
     }
-
-
-
 
 
     /**
@@ -122,7 +126,7 @@ public class Master {
         this.serialNumber = serialNumber;
     }
 
-    class Puller extends Thread implements Runnable {
+    class MasterPuller extends Thread implements Runnable {
         private volatile boolean shutdown = false;
         public void run() {
             if(shutdown) {
@@ -147,7 +151,7 @@ public class Master {
     }
 
 
-    class Pusher extends Thread implements Runnable {
+    class MasterPusher extends Thread implements Runnable {
         private volatile boolean shutdown = false;
         public void run() {
             if(shutdown) {
