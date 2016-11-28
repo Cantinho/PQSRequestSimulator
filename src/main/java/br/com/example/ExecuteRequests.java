@@ -13,9 +13,9 @@ import java.util.List;
 public class ExecuteRequests {
 
     /** number of centrals connected to the cloud service */
-    private final static int MASTERS_AMOUNT = 10;
+    private final static int MASTERS_AMOUNT = 1;
     /** number of slaves allowed to speak to each central */
-    private final static int AMOUNT_OF_SLAVE_PER_MASTER = 3;
+    private final static int AMOUNT_OF_SLAVE_PER_MASTER = 2;
 
     private static List<Master> masters;
     private static List<Slave> slaves;

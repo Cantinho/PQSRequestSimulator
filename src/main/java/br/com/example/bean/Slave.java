@@ -39,7 +39,7 @@ public class Slave {
     }
 
     public Slave(String applicationID, String masterSerialNumber) {
-        this(applicationID, masterSerialNumber, 8, 4, 4, 6);
+        this(applicationID, masterSerialNumber, 2, 0, 2, 0);
     }
 
     public void init() {
@@ -74,11 +74,11 @@ public class Slave {
     }
 
     private Runnable createPuller() {
-        return new SlavePuller();
+        return new SlavePuller(PULLING_OFFSET);
     }
 
     private Runnable createPusher() {
-        return new SlavePusher();
+        return new SlavePusher(PUSHING_OFFSET);
     }
 
 
@@ -115,6 +115,10 @@ public class Slave {
 
     class SlavePuller extends Thread implements Runnable {
         private volatile boolean shutdown = false;
+        private int pullingOffset;
+        public SlavePuller(int pullingOffset){
+            this.pullingOffset = pullingOffset;
+        }
         public void run() {
             if(shutdown) {
                 try {
@@ -122,6 +126,16 @@ public class Slave {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
+            }
+
+            Random rand = new Random();
+
+            int randomInterval = rand.nextInt(pullingOffset + 1);
+
+            try {
+                Thread.sleep(randomInterval * 1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
 
             String response = pa(null);
@@ -135,7 +149,19 @@ public class Slave {
 
 
     class SlavePusher extends Thread implements Runnable {
+        private final int pushingOffset;
         private volatile boolean shutdown = false;
+        private boolean sleepMode = false;
+
+        public SlavePusher(int pushingOffset, boolean sleepMode) {
+            this.pushingOffset = pushingOffset;
+            this.sleepMode = sleepMode;
+        }
+
+        public SlavePusher(int pushingOffset) {
+            this(pushingOffset, false);
+        }
+
         public void run() {
             if(shutdown) {
                 try {
@@ -145,9 +171,20 @@ public class Slave {
                 }
             }
 
-            String body = "7B4CAAABBBCCCDDDEEEFFF";
-            String response = pa(body);
-            LOGGER.info("PA POST CENTRAL-SN [" + masterSerialNumber + "] APP-ID [" + applicationID + "]: " + response);
+            if(!sleepMode) {
+                Random rand = new Random();
+                int randomInterval = rand.nextInt(pushingOffset + 1);
+
+                try {
+                    Thread.sleep(randomInterval * 1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+                String body = "7B4CAAABBBCCCDDDEEEFFF";
+                String response = pa(body);
+                LOGGER.info("PA POST CENTRAL-SN [" + masterSerialNumber + "] APP-ID [" + applicationID + "]: " + response);
+            }
         }
 
         public void shutdown() {

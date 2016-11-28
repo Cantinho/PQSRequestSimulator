@@ -35,7 +35,7 @@ public class Master {
     }
 
     public Master(String serialNumber) {
-        this(serialNumber, 8, 4, 4, 6);
+        this(serialNumber, 1, 0, 1, 6);
     }
 
     public void init() {
@@ -47,6 +47,7 @@ public class Master {
         Runnable pusher = createPusher();
         ScheduledExecutorService executorService = Executors.newScheduledThreadPool(2);
         Future<?> pullerFuture = executorService.scheduleAtFixedRate(puller, 0, MINIMUM_PULLING_INTERVAL, TimeUnit.SECONDS);
+
         Future<?> pusherFuture = executorService.scheduleAtFixedRate(pusher, 0, MINIMUM_PUSHING_INTERVAL, TimeUnit.SECONDS);
         runnableFutures.add(pullerFuture);
         runnableFutures.add(pusherFuture);
@@ -70,11 +71,11 @@ public class Master {
     }
 
     private Runnable createPuller() {
-        return new MasterPuller();
+        return new MasterPuller(PULLING_OFFSET);
     }
 
     private Runnable createPusher() {
-        return new MasterPusher();
+        return new MasterPusher(PUSHING_OFFSET, false);
     }
 
 
@@ -116,6 +117,12 @@ public class Master {
 
     class MasterPuller extends Thread implements Runnable {
         private volatile boolean shutdown = false;
+        private int pullingOffset;
+
+        public MasterPuller(int pullingOffset) {
+            this.pullingOffset = pullingOffset;
+        }
+
         public void run() {
             if(shutdown) {
                 try {
@@ -124,6 +131,16 @@ public class Master {
                     e.printStackTrace();
                 }
             }
+
+            Random rand = new Random();
+            int randomInterval = rand.nextInt(pullingOffset + 1);
+
+            try {
+                Thread.sleep(randomInterval * 1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
             String response = pull();
             LOGGER.info("PULL CENTRAL-SN [" + serialNumber + "]: " + response);
             if(!response.equals("{}")){
@@ -144,6 +161,18 @@ public class Master {
 
     class MasterPusher extends Thread implements Runnable {
         private volatile boolean shutdown = false;
+        private int pushingOffset;
+        private boolean sleepMode = false;
+
+        public MasterPusher(int pushingOffset, boolean sleepMode){
+            this.pushingOffset = pushingOffset;
+            this.sleepMode = sleepMode;
+        }
+
+        public MasterPusher(int pushingOffset){
+            this(pushingOffset, false);
+        }
+
         public void run() {
             if(shutdown) {
                 try {
@@ -152,13 +181,25 @@ public class Master {
                     e.printStackTrace();
                 }
             }
-            Map<String, String> headers = new HashMap<String, String>();
-            headers.put("Serial-Number", serialNumber);
-            headers.put("Broadcast", "true");
 
-            Message message = new Message(serialNumber, null, String.valueOf(new Date().getTime()), "10", "7B43FFFBBBCCCAAADDD");
-            String response = pc(message, headers);
-            LOGGER.info("PC CENTRAL-SN [" + serialNumber + "] APP-ID [" + message.getApplicationID() + "]: " + response);
+            if(!sleepMode) {
+                Random rand = new Random();
+                int randomInterval = rand.nextInt(pushingOffset + 1);
+
+                try {
+                    Thread.sleep(randomInterval * 1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+                Map<String, String> headers = new HashMap<String, String>();
+                headers.put("Serial-Number", serialNumber);
+                headers.put("Broadcast", "true");
+
+                Message message = new Message(serialNumber, null, String.valueOf(new Date().getTime()), "10", "7B43FFFBBBCCCAAADDD");
+                String response = pc(message, headers);
+                LOGGER.info("PC CENTRAL-SN [" + serialNumber + "] APP-ID [" + message.getApplicationID() + "]: " + response);
+            }
         }
 
         public void shutdown() {
