@@ -98,7 +98,7 @@ public class Slave implements IRequestStatisticallyProfilable {
 
         String response = POST("/pa", headers, body);
         long endTimestamp = new Date().getTime();
-        RequestStatistics requestStatistics = new RequestStatistics(body == null ? "pa - wbody" : "pa - nobody", "", endTimestamp - startTimestamp);
+        RequestStatistics requestStatistics = new RequestStatistics(masterSerialNumber + "_" + applicationID, body == null ? "pa - wbody" : "pa - nobody", endTimestamp - startTimestamp);
         requestStatisticsList.add(requestStatistics);
         return response;
     }

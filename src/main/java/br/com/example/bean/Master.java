@@ -96,7 +96,7 @@ public class Master implements IRequestStatisticallyProfilable {
 
         String response = GET("/pull", headers);
         long endTimestamp = new Date().getTime();
-        RequestStatistics requestStatistics = new RequestStatistics("pull", "", endTimestamp - startTimestamp);
+        RequestStatistics requestStatistics = new RequestStatistics(serialNumber, "pull", endTimestamp - startTimestamp);
         requestStatisticsList.add(requestStatistics);
         return response;
     }
@@ -113,7 +113,7 @@ public class Master implements IRequestStatisticallyProfilable {
 
         String response = POST("/pc", headers, body);
         long endTimestamp = new Date().getTime();
-        RequestStatistics requestStatistics = new RequestStatistics("pc", "", endTimestamp - startTimestamp);
+        RequestStatistics requestStatistics = new RequestStatistics(serialNumber, "pc", endTimestamp - startTimestamp);
         requestStatisticsList.add(requestStatistics);
         return response;
     }

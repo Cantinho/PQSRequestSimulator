@@ -4,9 +4,7 @@ import br.com.example.statistics.IStatistics;
 import br.com.example.bean.Master;
 import br.com.example.bean.Slave;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 /**
  * Created by jordao on 27/11/16.
@@ -80,22 +78,34 @@ public class PQSRequestSimulator {
         List<IStatistics> masterStatistics = new ArrayList<IStatistics>();
         Iterator<Master> mastersIterator = masters.iterator();
         while(mastersIterator.hasNext()) {
-            masterStatistics.add(mastersIterator.next().collectStatistics());
+            Master master = mastersIterator.next();
+            List<IStatistics> currentMasterStatistics = master.collectStatistics();
+            Iterator<IStatistics> currentMasterStatisticsIterator = currentMasterStatistics.iterator();
+            while(currentMasterStatisticsIterator.hasNext()) {
+                masterStatistics.add(currentMasterStatisticsIterator.next());
+            }
         }
         return masterStatistics;
     }
 
     public static List<IStatistics> collectSlaveStatistics() {
         List<IStatistics> slaveStatistics = new ArrayList<IStatistics>();
-        Iterator<Master> slavesIterator = masters.iterator();
-        while(slavesIterator.hasNext()) {
-            slaveStatistics.add(slavesIterator.next().collectStatistics());
+        Iterator<Master> slaveIterator = masters.iterator();
+        while(slaveIterator.hasNext()) {
+            Master master = slaveIterator.next();
+            List<IStatistics> currentSlaveStatistics = master.collectStatistics();
+            Iterator<IStatistics> currentSlaveStatisticsIterator = currentSlaveStatistics.iterator();
+            while(currentSlaveStatisticsIterator.hasNext()) {
+                slaveStatistics.add(currentSlaveStatisticsIterator.next());
+            }
         }
         return slaveStatistics;
     }
 
-    public static void collectAllStatistics() {
-
+    public static List<IStatistics> collectAllStatistics() {
+        List<IStatistics> allStatistics = new ArrayList<IStatistics>(collectMasterStatistics());
+        allStatistics.addAll(collectSlaveStatistics());
+        return allStatistics;
     }
 
 
@@ -106,7 +116,8 @@ public class PQSRequestSimulator {
         // TODO after some N secods we have to stop all threads and collect results.
         Thread.sleep(50000);
         stopAll();
-
+        System.out.println("PQSRequestSimulator Statistics\n");
+        System.out.println(collectAllStatistics() + "\n");
 
     }
 
