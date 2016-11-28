@@ -46,5 +46,9 @@ public class RequestStatistics implements IStatistics {
         return stringBuilder.toString();
     }
 
-
+    @Override
+    public String toString() {
+        return print(false);
+    }
+    
 }
