@@ -1,5 +1,8 @@
 package br.com.example.bean;
 
+import br.com.example.statistics.IRequestStatisticallyProfilable;
+import br.com.example.statistics.IStatistics;
+import br.com.example.statistics.RequestStatistics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,7 +17,7 @@ import static br.com.example.request.Request.POST;
 /**
  * Created by jordao on 27/11/16.
  */
-public class Slave {
+public class Slave implements IRequestStatisticallyProfilable {
 
     private final static Logger LOGGER = LoggerFactory.getLogger(Slave.class);
 
@@ -26,7 +29,7 @@ public class Slave {
     private final int PUSHING_OFFSET;
     private List<Future> runnableFutures;
 
-
+    private List<IStatistics> requestStatisticsList = new LinkedList<IStatistics>();
 
     public Slave(String applicationID, String masterSerialNumber, int minimumPullingInterval, int pullingOffset,
                  int minimumPushingInterval, int pushingOffset) {
@@ -87,13 +90,16 @@ public class Slave {
      * @return
      */
     private String pa(String body){
+        long startTimestamp = new Date().getTime();
         Map<String, String> headers = new HashMap<String, String>();
         headers.put("Serial-Number", masterSerialNumber);
         headers.put("Application-ID", applicationID);
 
 
         String response = POST("/pa", headers, body);
-
+        long endTimestamp = new Date().getTime();
+        RequestStatistics requestStatistics = new RequestStatistics(body == null ? "pa - wbody" : "pa - nobody", "", endTimestamp - startTimestamp);
+        requestStatisticsList.add(requestStatistics);
         return response;
     }
 
@@ -111,6 +117,10 @@ public class Slave {
 
     public void setMasterSerialNumber(String centralSerialNumber) {
         this.masterSerialNumber = centralSerialNumber;
+    }
+
+    public List<IStatistics> collectStatistics() {
+        return requestStatisticsList;
     }
 
     class SlavePuller extends Thread implements Runnable {

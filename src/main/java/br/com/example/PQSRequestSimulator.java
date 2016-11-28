@@ -1,5 +1,6 @@
 package br.com.example;
 
+import br.com.example.statistics.IStatistics;
 import br.com.example.bean.Master;
 import br.com.example.bean.Slave;
 
@@ -10,7 +11,7 @@ import java.util.List;
 /**
  * Created by jordao on 27/11/16.
  */
-public class ExecuteRequests {
+public class PQSRequestSimulator {
 
     /** number of centrals connected to the cloud service */
     private final static int MASTERS_AMOUNT = 1;
@@ -73,6 +74,28 @@ public class ExecuteRequests {
     public static void stopAll() {
         stopMasters();
         stopSlaves();
+    }
+
+    public static List<IStatistics> collectMasterStatistics() {
+        List<IStatistics> masterStatistics = new ArrayList<IStatistics>();
+        Iterator<Master> mastersIterator = masters.iterator();
+        while(mastersIterator.hasNext()) {
+            masterStatistics.add(mastersIterator.next().collectStatistics());
+        }
+        return masterStatistics;
+    }
+
+    public static List<IStatistics> collectSlaveStatistics() {
+        List<IStatistics> slaveStatistics = new ArrayList<IStatistics>();
+        Iterator<Master> slavesIterator = masters.iterator();
+        while(slavesIterator.hasNext()) {
+            slaveStatistics.add(slavesIterator.next().collectStatistics());
+        }
+        return slaveStatistics;
+    }
+
+    public static void collectAllStatistics() {
+
     }
 
 
