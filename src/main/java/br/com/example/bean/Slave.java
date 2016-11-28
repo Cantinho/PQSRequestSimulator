@@ -129,7 +129,6 @@ public class Slave {
             }
 
             Random rand = new Random();
-
             int randomInterval = rand.nextInt(pullingOffset + 1);
 
             try {
