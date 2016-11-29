@@ -15,4 +15,6 @@ public interface IStatistics {
 
     String print(boolean messageSuppressed);
 
+    String csv();
+
 }

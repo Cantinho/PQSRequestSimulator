@@ -77,12 +77,14 @@ public class PQSRequestSimulator {
     public static List<IStatistics> collectMasterStatistics() {
         List<IStatistics> masterStatistics = new ArrayList<IStatistics>();
         Iterator<Master> mastersIterator = masters.iterator();
-        while(mastersIterator.hasNext()) {
-            Master master = mastersIterator.next();
-            List<IStatistics> currentMasterStatistics = master.collectStatistics();
-            Iterator<IStatistics> currentMasterStatisticsIterator = currentMasterStatistics.iterator();
-            while(currentMasterStatisticsIterator.hasNext()) {
-                masterStatistics.add(currentMasterStatisticsIterator.next());
+        synchronized (masters) {
+            while (mastersIterator.hasNext()) {
+                Master master = mastersIterator.next();
+                List<IStatistics> currentMasterStatistics = master.collectStatistics();
+                Iterator<IStatistics> currentMasterStatisticsIterator = currentMasterStatistics.iterator();
+                while (currentMasterStatisticsIterator.hasNext()) {
+                    masterStatistics.add(currentMasterStatisticsIterator.next());
+                }
             }
         }
         return masterStatistics;
@@ -90,13 +92,17 @@ public class PQSRequestSimulator {
 
     public static List<IStatistics> collectSlaveStatistics() {
         List<IStatistics> slaveStatistics = new ArrayList<IStatistics>();
-        Iterator<Master> slaveIterator = masters.iterator();
-        while(slaveIterator.hasNext()) {
-            Master master = slaveIterator.next();
-            List<IStatistics> currentSlaveStatistics = master.collectStatistics();
-            Iterator<IStatistics> currentSlaveStatisticsIterator = currentSlaveStatistics.iterator();
-            while(currentSlaveStatisticsIterator.hasNext()) {
-                slaveStatistics.add(currentSlaveStatisticsIterator.next());
+        Iterator<Slave> slaveIterator = slaves.iterator();
+        synchronized (slaves) {
+            while (slaveIterator.hasNext()) {
+                Slave slave = slaveIterator.next();
+                List<IStatistics> currentSlaveStatistics = slave.collectStatistics();
+                Iterator<IStatistics> currentSlaveStatisticsIterator = currentSlaveStatistics.iterator();
+                while (currentSlaveStatisticsIterator.hasNext()) {
+                    if(currentSlaveStatisticsIterator != null) {
+                        slaveStatistics.add(currentSlaveStatisticsIterator.next());
+                    }
+                }
             }
         }
         return slaveStatistics;
@@ -114,9 +120,16 @@ public class PQSRequestSimulator {
 
         startAll();
         // TODO after some N secods we have to stop all threads and collect results.
-        Thread.sleep(50000);
+        Thread.sleep(10000);
         stopAll();
+        System.out.println("PQSRequestSimulator Statistics\n\n");
+
         System.out.println("PQSRequestSimulator Statistics\n");
+        List<IStatistics> statistics = collectAllStatistics();
+        Iterator<IStatistics> iStatisticsIterator = statistics.iterator();
+        while(iStatisticsIterator.hasNext()) {
+            System.out.println(iStatisticsIterator.next().csv());
+        }
         System.out.println(collectAllStatistics() + "\n");
 
     }
