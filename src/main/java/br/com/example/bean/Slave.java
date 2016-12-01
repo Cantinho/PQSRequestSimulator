@@ -27,7 +27,8 @@ public class Slave implements IRequestStatisticallyProfilable {
     private final int PULLING_OFFSET;
     private final int MINIMUM_PUSHING_INTERVAL;
     private final int PUSHING_OFFSET;
-    private List<Future> runnableFutures;
+    private List<Future> runnablePullerFutures;
+    private List<Future> runnablePusherFutures;
 
     private List<IStatistics> requestStatisticsList = new LinkedList<IStatistics>();
 
@@ -42,11 +43,12 @@ public class Slave implements IRequestStatisticallyProfilable {
     }
 
     public Slave(String applicationID, String masterSerialNumber) {
-        this(applicationID, masterSerialNumber, 2, 0, 2, 0);
+        this(applicationID, masterSerialNumber, 2, 5, 2, 5);
     }
 
     public void init() {
-        runnableFutures = new ArrayList<Future>();
+        runnablePullerFutures = new ArrayList<Future>();
+        runnablePusherFutures = new ArrayList<Future>();
     }
 
     public void start() {
@@ -55,12 +57,12 @@ public class Slave implements IRequestStatisticallyProfilable {
         ScheduledExecutorService executorService = Executors.newScheduledThreadPool(2);
         Future<?> pullerFuture = executorService.scheduleAtFixedRate(puller, 0, MINIMUM_PULLING_INTERVAL, TimeUnit.SECONDS);
         Future<?> pusherFuture = executorService.scheduleAtFixedRate(pusher, 0, MINIMUM_PUSHING_INTERVAL, TimeUnit.SECONDS);
-        runnableFutures.add(pullerFuture);
-        runnableFutures.add(pusherFuture);
+        runnablePullerFutures.add(pullerFuture);
+        runnablePusherFutures.add(pusherFuture);
     }
 
-    public void stop() {
-        Iterator<Future> runnableFutureIterator = runnableFutures.iterator();
+    public void stopPullers() {
+        Iterator<Future> runnableFutureIterator = runnablePullerFutures.iterator();
         while(runnableFutureIterator.hasNext()) {
             try {
                 runnableFutureIterator.next().cancel(true);
@@ -69,11 +71,33 @@ public class Slave implements IRequestStatisticallyProfilable {
             }
         }
         try {
-            runnableFutures.clear();
-            runnableFutures = null;
+            runnablePullerFutures.clear();
+            runnablePullerFutures = null;
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public void stopPushers() {
+        Iterator<Future> runnableFutureIterator = runnablePusherFutures.iterator();
+        while(runnableFutureIterator.hasNext()) {
+            try {
+                runnableFutureIterator.next().cancel(true);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        try {
+            runnablePusherFutures.clear();
+            runnablePusherFutures = null;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void stopAll() {
+        stopPullers();
+        stopPushers();
     }
 
     private Runnable createPuller() {
@@ -146,7 +170,7 @@ public class Slave implements IRequestStatisticallyProfilable {
             try {
                 Thread.sleep(randomInterval * 1000);
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                //e.printStackTrace();
             }
 
             String response = pa(null);
@@ -189,7 +213,7 @@ public class Slave implements IRequestStatisticallyProfilable {
                 try {
                     Thread.sleep(randomInterval * 1000);
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    //e.printStackTrace();
                 }
 
                 String body = "7B4CAAABBBCCCDDDEEEFFF";

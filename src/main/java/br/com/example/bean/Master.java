@@ -27,7 +27,8 @@ public class Master implements IRequestStatisticallyProfilable {
     private final int PULLING_OFFSET;
     private final int MINIMUM_PUSHING_INTERVAL;
     private final int PUSHING_OFFSET;
-    private List<Future> runnableFutures;
+    private List<Future> runnablePullersFutures;
+    private List<Future> runnablePushersFutures;
 
     private List<IStatistics> requestStatisticsList = new LinkedList<IStatistics>();
 
@@ -45,7 +46,8 @@ public class Master implements IRequestStatisticallyProfilable {
     }
 
     public void init() {
-        runnableFutures = new ArrayList<Future>();
+        runnablePullersFutures = new ArrayList<Future>();
+        runnablePushersFutures = new ArrayList<Future>();
     }
 
     public void start() {
@@ -55,12 +57,12 @@ public class Master implements IRequestStatisticallyProfilable {
         Future<?> pullerFuture = executorService.scheduleAtFixedRate(puller, 0, MINIMUM_PULLING_INTERVAL, TimeUnit.SECONDS);
 
         Future<?> pusherFuture = executorService.scheduleAtFixedRate(pusher, 0, MINIMUM_PUSHING_INTERVAL, TimeUnit.SECONDS);
-        runnableFutures.add(pullerFuture);
-        runnableFutures.add(pusherFuture);
+        runnablePullersFutures.add(pullerFuture);
+        runnablePushersFutures.add(pusherFuture);
     }
 
-    public void stop() {
-        Iterator<Future> runnableFutureIterator = runnableFutures.iterator();
+    public void stopPullers() {
+        Iterator<Future> runnableFutureIterator = runnablePullersFutures.iterator();
         while(runnableFutureIterator.hasNext()) {
             try {
                 runnableFutureIterator.next().cancel(true);
@@ -69,11 +71,33 @@ public class Master implements IRequestStatisticallyProfilable {
             }
         }
         try {
-            runnableFutures.clear();
-            runnableFutures = null;
+            runnablePullersFutures.clear();
+            runnablePullersFutures = null;
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public void stopPushers() {
+        Iterator<Future> runnableFutureIterator = runnablePushersFutures.iterator();
+        while(runnableFutureIterator.hasNext()) {
+            try {
+                runnableFutureIterator.next().cancel(true);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        try {
+            runnablePushersFutures.clear();
+            runnablePushersFutures = null;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void stop() {
+        stopPullers();
+        stopPushers();
     }
 
     private Runnable createPuller() {
@@ -157,7 +181,7 @@ public class Master implements IRequestStatisticallyProfilable {
             try {
                 Thread.sleep(randomInterval * 1000);
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                //e.printStackTrace();
             }
 
             String response = pull();
@@ -208,7 +232,7 @@ public class Master implements IRequestStatisticallyProfilable {
                 try {
                     Thread.sleep(randomInterval * 1000);
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    //e.printStackTrace();
                 }
 
                 Map<String, String> headers = new HashMap<String, String>();

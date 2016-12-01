@@ -4,6 +4,7 @@ import br.com.example.statistics.IStatistics;
 import br.com.example.bean.Master;
 import br.com.example.bean.Slave;
 
+import java.io.IOException;
 import java.util.*;
 
 /**
@@ -14,7 +15,7 @@ public class PQSRequestSimulator {
     /** number of centrals connected to the cloud service */
     private final static int MASTERS_AMOUNT = 1;
     /** number of slaves allowed to speak to each central */
-    private final static int AMOUNT_OF_SLAVE_PER_MASTER = 2;
+    private final static int AMOUNT_OF_SLAVE_PER_MASTER = 100;
 
     private static List<Master> masters;
     private static List<Slave> slaves;
@@ -42,25 +43,38 @@ public class PQSRequestSimulator {
         }
     }
 
-    public static void stopMasters() {
+
+    public static void stopMasters(int runnableType) {
         Iterator<Master> masterIterator = masters.iterator();
         while(masterIterator.hasNext()) {
             try {
-                masterIterator.next().stop();
-            } catch (Exception e) {
-
-            }
+                Master master = masterIterator.next();
+                if(runnableType == 1) {
+                    master.stopPullers();
+                } else if(runnableType == 2) {
+                    master.stopPushers();
+                } else {
+                    master.stopPullers();
+                    master.stopPushers();
+                }
+            } catch (Exception e) {}
         }
     }
 
-    public static void stopSlaves() {
+    public static void stopSlaves(int runnableType) {
         Iterator<Slave> slaveIterator = slaves.iterator();
         while(slaveIterator.hasNext()) {
             try {
-                slaveIterator.next().stop();
-            } catch (Exception e) {
-
-            }
+                Slave slave = slaveIterator.next();
+                if(runnableType == 1) {
+                    slave.stopPullers();
+                } else if(runnableType == 2) {
+                    slave.stopPushers();
+                } else {
+                    slave.stopPullers();
+                    slave.stopPushers();
+                }
+            } catch (Exception e) {}
         }
     }
 
@@ -70,8 +84,8 @@ public class PQSRequestSimulator {
     }
 
     public static void stopAll() {
-        stopMasters();
-        stopSlaves();
+        stopMasters(0);
+        stopSlaves(0);
     }
 
     public static List<IStatistics> collectMasterStatistics() {
@@ -118,13 +132,15 @@ public class PQSRequestSimulator {
     /** good and old main method =P */
     public static void main(String[] args) throws InterruptedException {
 
+
         startAll();
         // TODO after some N secods we have to stop all threads and collect results.
         Thread.sleep(10000);
         stopAll();
         System.out.println("PQSRequestSimulator Statistics\n\n");
-
-        System.out.println("PQSRequestSimulator Statistics\n");
+        System.out.println("Masters amount:" + MASTERS_AMOUNT);
+        System.out.println("Slaves per Master:" + AMOUNT_OF_SLAVE_PER_MASTER);
+        System.out.println("Sequence; StartTime; EndTime; TotalTime; Label; Message\n");
         List<IStatistics> statistics = collectAllStatistics();
         Iterator<IStatistics> iStatisticsIterator = statistics.iterator();
         while(iStatisticsIterator.hasNext()) {
@@ -132,8 +148,47 @@ public class PQSRequestSimulator {
         }
         System.out.println(collectAllStatistics() + "\n");
 
+        //programOne();
     }
 
+
+
+
+    private static void programOne() {
+        System.out.println("Program One\n");
+        System.out.println("Starting all...");
+        startAll();
+        int millis = 20000;
+        System.out.println("Waiting for " + millis/1000 + " seconds...");
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {}
+
+        System.out.println("Stopping slave pushers...");
+        stopSlaves(2);
+        try {
+            System.in.read();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        System.out.println("Stopping slave pullers...");
+        stopSlaves(1);
+        try {
+            System.in.read();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        System.out.println("Stopping all masters...");
+        stopMasters(0);
+
+        System.out.println("\nPrinting statistics...");
+        System.out.println("PQSRequestSimulator Statistics\n");
+        List<IStatistics> statistics = collectAllStatistics();
+        Iterator<IStatistics> iStatisticsIterator = statistics.iterator();
+        while(iStatisticsIterator.hasNext()) {
+            System.out.println(iStatisticsIterator.next().csv());
+        }
+    }
 
 
 }
