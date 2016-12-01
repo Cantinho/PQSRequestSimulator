@@ -17,7 +17,8 @@ import java.util.Map;
  */
 public class Request {
 
-    private final static Logger LOGGER = LoggerFactory.getLogger(Request.class);
+    private final static Logger LOGGER = LoggerFactory.getLogger(Request.class.getName());
+
 
     /** url for connecting to the cloud service */
     private final static String URL = "http://localhost:8080";
@@ -57,9 +58,9 @@ public class Request {
             }
 
         } catch (MalformedURLException e) {
-            e.printStackTrace();
+            LOGGER.error(e.getMessage());
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.error(e.getMessage());
         } finally {
             try {
                 reader.close();
@@ -112,9 +113,9 @@ public class Request {
             }
 
         } catch (MalformedURLException e) {
-            e.printStackTrace();
+            LOGGER.error(e.getMessage());
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.error(e.getMessage());
         } finally {
             try {
                 if(reader != null)

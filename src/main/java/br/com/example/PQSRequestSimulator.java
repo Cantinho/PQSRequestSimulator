@@ -3,6 +3,7 @@ package br.com.example;
 import br.com.example.statistics.IStatistics;
 import br.com.example.bean.Master;
 import br.com.example.bean.Slave;
+import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.util.*;
@@ -131,7 +132,6 @@ public class PQSRequestSimulator {
 
     /** good and old main method =P */
     public static void main(String[] args) throws InterruptedException {
-
 
         startAll();
         // TODO after some N secods we have to stop all threads and collect results.
