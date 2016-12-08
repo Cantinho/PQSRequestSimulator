@@ -32,6 +32,18 @@ public class Slave implements IRequestStatisticallyProfilable {
 
     private List<IStatistics> requestStatisticsList = new LinkedList<IStatistics>();
 
+    // TODO change this to package attributes;
+    /**
+     * Ficar imprimindo o status local (lock) após pooling.
+     * Ao conectar, enviar mensagem para o master pedindo status.
+     * Quando pa do lock for chamando, enviar mensagem para a de trocar o estado do lock.
+     * Essa mensagem chega no master. Este processa e envia resposta para slave.
+     * O Slave recebe a mensagem do status referente à mensagem enviada e atualiza seu status (lock).
+     * Imprimir lock do slave.
+     * Fazer o mesmo a cada pooling no Master
+     */
+    private boolean lock = false; // ficar estado do master;
+
     public Slave(String applicationID, String masterSerialNumber, int minimumPullingInterval, int pullingOffset,
                  int minimumPushingInterval, int pushingOffset) {
         this.applicationID = applicationID;
