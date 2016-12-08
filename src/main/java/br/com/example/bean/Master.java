@@ -32,6 +32,15 @@ public class Master implements IRequestStatisticallyProfilable {
 
     private List<IStatistics> requestStatisticsList = new LinkedList<IStatistics>();
 
+    /**
+     * known commands
+     */
+    private boolean lock = false;
+    private final String CONNECT = "7B43";
+    private final String LOCK = "7B44";
+    private final String UNLOCK = "7B45";
+
+
     public Master(String serialNumber, int minimumPullingInterval, int pullingOffset,
                   int minimumPushingInterval, int pushingOffset) {
         this.serialNumber = serialNumber;
@@ -42,7 +51,7 @@ public class Master implements IRequestStatisticallyProfilable {
     }
 
     public Master(String serialNumber) {
-        this(serialNumber, 1, 0, 1, 6);
+        this(serialNumber, 1, 0, 6, 6);
     }
 
     public void init() {
@@ -117,6 +126,7 @@ public class Master implements IRequestStatisticallyProfilable {
         long startTimestamp = new Date().getTime();
         Map<String, String> headers = new HashMap<String, String>();
         headers.put("Serial-Number", serialNumber);
+        headers.put("Content-Type", "application/json");
 
         String response = GET("/pull", headers);
         long endTimestamp = new Date().getTime();
@@ -135,7 +145,22 @@ public class Master implements IRequestStatisticallyProfilable {
     private String pc(Message message, Map<String, String> headers){
         long startTimestamp = new Date().getTime();
         headers.put("Application-ID", message.getApplicationID());
+        headers.put("Content-Type", "application/json");
         String body = message.getMessage();
+
+        String response = POST("/pc", headers, body);
+        long endTimestamp = new Date().getTime();
+        synchronized (requestStatisticsList) {
+            RequestStatistics requestStatistics = new RequestStatistics(serialNumber, "pc", startTimestamp, endTimestamp);
+            requestStatisticsList.add(requestStatistics);
+        }
+        return response;
+    }
+
+    private String pc(String applicationID, String body, Map<String, String> headers){
+        long startTimestamp = new Date().getTime();
+        headers.put("Application-ID", applicationID);
+        headers.put("Content-Type", "application/json");
 
         String response = POST("/pc", headers, body);
         long endTimestamp = new Date().getTime();
@@ -191,7 +216,32 @@ public class Master implements IRequestStatisticallyProfilable {
                 headers.put("Serial-Number", serialNumber);
 
                 Message message = (new Gson()).fromJson(response, Message.class);
-                response = pc(message, headers);
+
+                String command = message.getMessage();
+                switch (command) {
+                    case CONNECT:
+                        LOGGER.warn("#TAG Master [ " + serialNumber + " ]: connection required");
+                        pc(message.getApplicationID(), CONNECT+"OK", headers);
+                        break;
+                    case LOCK:
+                        if(!lock) lock = true;
+                        LOGGER.warn("#TAG Master [ " + serialNumber + " ]: change lock status required to LOCK");
+                        headers.put("Broadcast", "true");
+                        pc(message.getApplicationID(), LOCK+"OK", headers);
+                        break;
+                    case UNLOCK:
+                        if(lock) lock = false;
+                        LOGGER.warn("#TAG Master [ " + serialNumber + " ]: change lock status required to UNLOCK");
+                        headers.put("Broadcast", "true");
+                        pc(message.getApplicationID(), UNLOCK+"OK", headers);
+                        break;
+                    default:
+                        LOGGER.warn("#TAG Master COMMAND + [ " + command + " ] NOT FOUND.");
+                        pc(message, headers);
+                }
+
+
+                //response = pc(message, headers);
                 LOGGER.info("PC CENTRAL-SN [" + serialNumber + "] APP-ID [" + message.getApplicationID() + "]: " + response);
             }
         }

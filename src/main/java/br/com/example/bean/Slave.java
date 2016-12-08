@@ -3,6 +3,7 @@ package br.com.example.bean;
 import br.com.example.statistics.IRequestStatisticallyProfilable;
 import br.com.example.statistics.IStatistics;
 import br.com.example.statistics.RequestStatistics;
+import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,6 +44,10 @@ public class Slave implements IRequestStatisticallyProfilable {
      * Fazer o mesmo a cada pooling no Master
      */
     private boolean lock = false; // ficar estado do master;
+    private boolean connected = false;
+    private final String CONNECT = "7B43";
+    private final String LOCK = "7B44";
+    private final String UNLOCK = "7B45";
 
     public Slave(String applicationID, String masterSerialNumber, int minimumPullingInterval, int pullingOffset,
                  int minimumPushingInterval, int pushingOffset) {
@@ -55,10 +60,16 @@ public class Slave implements IRequestStatisticallyProfilable {
     }
 
     public Slave(String applicationID, String masterSerialNumber) {
-        this(applicationID, masterSerialNumber, 2, 5, 2, 5);
+        this(applicationID, masterSerialNumber, 3, 5, 5, 5);
     }
 
     public void init() {
+
+        LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status connection: [ not connected ]");
+        if(connectToCentral()){
+            LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status connection: [ connection required ]");
+        }
+
         runnablePullerFutures = new ArrayList<Future>();
         runnablePusherFutures = new ArrayList<Future>();
     }
@@ -125,14 +136,16 @@ public class Slave implements IRequestStatisticallyProfilable {
      * executes POST /pa for devices
      * @return
      */
-    private String pa(String body){
+    private synchronized String pa(String body){
         long startTimestamp = new Date().getTime();
         Map<String, String> headers = new HashMap<String, String>();
         headers.put("Serial-Number", masterSerialNumber);
         headers.put("Application-ID", applicationID);
+        headers.put("Content-Type", "application/json");
 
 
         String response = POST("/pa", headers, body);
+
         long endTimestamp = new Date().getTime();
         synchronized (requestStatisticsList) {
             RequestStatistics requestStatistics = new RequestStatistics(masterSerialNumber + "_" + applicationID, body == null ? "pa - wbody" : "pa - nobody", startTimestamp, endTimestamp);
@@ -184,9 +197,34 @@ public class Slave implements IRequestStatisticallyProfilable {
             } catch (InterruptedException e) {
                 //e.printStackTrace();
             }
+            try {
+                String response = pa(null);
+                if(response != null && !response.equals("{}")){
+                    Message msg = new Gson().fromJson(response, Message.class);
+                    String res = msg.getMessage();
+                    switch (res) {
+                        case CONNECT + "OK":
+                            LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status connection: [ connected ].");
+                            connected = true;
+                            break;
+                        case LOCK + "OK":
+                            lock = true;
+                            LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status lock: [ " + lock + " ].");
+                            break;
+                        case UNLOCK + "OK":
+                            lock = false;
+                            LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status lock: [ " + lock + " ].");
+                            break;
+                        default:
+                            LOGGER.warn("#TAG Slave COMMAND + [ " + response + " ] NOT FOUND.");
+                            break;
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
 
-            String response = pa(null);
-            LOGGER.info("PA PULL CENTRAL-SN [" + masterSerialNumber + "] APP-ID [" + applicationID + "]: " + response);
+            //LOGGER.info("PA PULL CENTRAL-SN [" + masterSerialNumber + "] APP-ID [" + applicationID + "]: " + response );
         }
 
         public void shutdown() {
@@ -228,15 +266,40 @@ public class Slave implements IRequestStatisticallyProfilable {
                     //e.printStackTrace();
                 }
 
-                String body = "7B4CAAABBBCCCDDDEEEFFF";
-                String response = pa(body);
-                LOGGER.info("PA POST CENTRAL-SN [" + masterSerialNumber + "] APP-ID [" + applicationID + "]: " + response);
+                //String body = "7B4CAAABBBCCCDDDEEEFFF";
+                if(connected) {
+                    String response = null;
+                    if(lock) {
+                        response = pa(UNLOCK);
+                        LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status lock: [ CHANGE lock REQUIRED ] to [ UNLOCK ].");
+                    } else {
+                        response = pa(LOCK);
+                        LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status lock: [ CHANGE lock REQUIRED ] to [ LOCK ].");
+                    }
+                    LOGGER.info("PA POST CENTRAL-SN [" + masterSerialNumber + "] APP-ID [" + applicationID + "]: " + response);
+                }
             }
         }
 
         public void shutdown() {
             shutdown = true;
         }
+    }
+
+    private boolean connectToCentral(){
+
+        Map<String, String> headers = new HashMap<String, String>();
+        headers.put("Serial-Number", masterSerialNumber);
+        headers.put("Application-ID", applicationID);
+        headers.put("Content-Type", "application/json");
+        String response = "";
+        try {
+            response = POST("/sconn", headers, CONNECT);
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
+        return response.equals("RECEIVED");
     }
 
 }

@@ -16,7 +16,7 @@ public class PQSRequestSimulator {
     /** number of centrals connected to the cloud service */
     private final static int MASTERS_AMOUNT = 1;
     /** number of slaves allowed to speak to each central */
-    private final static int AMOUNT_OF_SLAVE_PER_MASTER = 100;
+    private final static int AMOUNT_OF_SLAVE_PER_MASTER = 2;
 
     private static List<Master> masters;
     private static List<Slave> slaves;
@@ -135,7 +135,8 @@ public class PQSRequestSimulator {
 
         startAll();
         // TODO after some N secods we have to stop all threads and collect results.
-        Thread.sleep(10000);
+        Thread.sleep(Integer.MAX_VALUE);
+
         stopAll();
         System.out.println("PQSRequestSimulator Statistics\n\n");
         System.out.println("Masters amount:" + MASTERS_AMOUNT);
@@ -165,14 +166,14 @@ public class PQSRequestSimulator {
         } catch (InterruptedException e) {}
 
         System.out.println("Stopping slave pushers...");
-        stopSlaves(2);
+        //stopSlaves(2);
         try {
             System.in.read();
         } catch (IOException e) {
             e.printStackTrace();
         }
         System.out.println("Stopping slave pullers...");
-        stopSlaves(1);
+        //stopSlaves(1);
         try {
             System.in.read();
         } catch (IOException e) {
