@@ -43,11 +43,12 @@ public class Slave implements IRequestStatisticallyProfilable {
      * Imprimir lock do slave.
      * Fazer o mesmo a cada pooling no Master
      */
-    private boolean lock = false; // ficar estado do master;
+    private boolean[] locks = {false, false}; // ficar estado do master;
     private boolean connected = false;
-    private final String CONNECT = "7B43";
-    private final String LOCK = "7B44";
-    private final String UNLOCK = "7B45";
+    private final String CONNECT = "43";
+    private final String STATUS = "58";
+    private final String LOCK = "4E";
+    private final String UNLOCK = "4F";
 
     public Slave(String applicationID, String masterSerialNumber, int minimumPullingInterval, int pullingOffset,
                  int minimumPushingInterval, int pushingOffset) {
@@ -207,13 +208,21 @@ public class Slave implements IRequestStatisticallyProfilable {
                             LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status connection: [ connected ].");
                             connected = true;
                             break;
-                        case LOCK + "OK":
-                            lock = true;
-                            LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status lock: [ " + lock + " ].");
+                        case LOCK + "00":
+                            locks[0] = true;
+                            LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status locks[0]: [ " + locks[0] + " ].");
                             break;
-                        case UNLOCK + "OK":
-                            lock = false;
-                            LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status lock: [ " + lock + " ].");
+                        case LOCK + "01":
+                            locks[1] = true;
+                            LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status locks[1]: [ " + locks[1] + " ].");
+                            break;
+                        case UNLOCK + "00":
+                            locks[0] = false;
+                            LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status locks[0]: [ " + locks[0] + " ].");
+                            break;
+                        case UNLOCK + "01":
+                            locks[1] = false;
+                            LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status locks[1]: [ " + locks[1] + " ].");
                             break;
                         default:
                             LOGGER.warn("#TAG Slave COMMAND + [ " + response + " ] NOT FOUND.");
@@ -230,6 +239,55 @@ public class Slave implements IRequestStatisticallyProfilable {
         public void shutdown() {
             shutdown = true;
         }
+    }
+
+    synchronized String processMessage(final String message) {
+        //TODO use this method, please
+        final int messageLength = message.length();
+        final String header = message.substring(0, 2);
+        final String packetSize = message.substring(2, 4);
+        final String sequence = message.substring(4, 6);
+        final String command = message.substring(6, 8);
+        final String data = message.substring(8, messageLength - 2);
+        final String checksum = message.substring(messageLength - 2, messageLength);
+        switch (command) {
+            case CONNECT:
+                return processConnectResponse(data);
+            case LOCK:
+                return processLockResponse(data);
+            case UNLOCK:
+                return processUnlockResponse(data);
+            case STATUS:
+                return processStatusRequest(data);
+            default:
+                return null;
+        }
+    }
+
+    synchronized String processConnectResponse(final String status) {
+        return status;
+    }
+
+    synchronized String processLockResponse(final String status) {
+        return status;
+    }
+
+    synchronized String processUnlockResponse(final String status) {
+        return status;
+    }
+
+    synchronized String processStatusRequest(final String status) {
+        final String lock0 = status.substring(0, 2);
+        final String lock1 = status.substring(2, 4);
+
+        try {
+            locks[0] = Integer.valueOf(lock0) == 1 ? true : false;
+            locks[1] = Integer.valueOf(lock1) == 1 ? true : false;
+        } catch (Exception e) {
+            LOGGER.error("Error when parsing lock string to boolean");
+            e.printStackTrace();
+        }
+        return status;
     }
 
 
@@ -269,12 +327,13 @@ public class Slave implements IRequestStatisticallyProfilable {
                 //String body = "7B4CAAABBBCCCDDDEEEFFF";
                 if(connected) {
                     String response = null;
-                    if(lock) {
+                    final int randomLock = new Random().nextInt(2);
+                    if(locks[randomLock]) {
                         response = pa(UNLOCK);
-                        LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status lock: [ CHANGE lock REQUIRED ] to [ UNLOCK ].");
+                        LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status locks[" + randomLock + "]: [ CHANGE lock REQUIRED ] to [ UNLOCK ].");
                     } else {
                         response = pa(LOCK);
-                        LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status lock: [ CHANGE lock REQUIRED ] to [ LOCK ].");
+                        LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status locks[" + randomLock + "]: [ CHANGE lock REQUIRED ] to [ LOCK ].");
                     }
                     LOGGER.info("PA POST CENTRAL-SN [" + masterSerialNumber + "] APP-ID [" + applicationID + "]: " + response);
                 }
@@ -287,7 +346,6 @@ public class Slave implements IRequestStatisticallyProfilable {
     }
 
     private boolean connectToCentral(){
-
         Map<String, String> headers = new HashMap<String, String>();
         headers.put("Serial-Number", masterSerialNumber);
         headers.put("Application-ID", applicationID);
@@ -300,6 +358,10 @@ public class Slave implements IRequestStatisticallyProfilable {
         }
 
         return response.equals("RECEIVED");
+    }
+
+    private String createMessage(final String command) {
+        return null;
     }
 
 }

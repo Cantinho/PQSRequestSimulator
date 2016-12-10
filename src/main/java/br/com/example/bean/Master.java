@@ -35,10 +35,11 @@ public class Master implements IRequestStatisticallyProfilable {
     /**
      * known commands
      */
-    private boolean lock = false;
-    private final String CONNECT = "7B43";
-    private final String LOCK = "7B44";
-    private final String UNLOCK = "7B45";
+    private boolean[] locks = {false, false};
+    private final String CONNECT = "43";
+    private final String STATUS = "58";
+    private final String LOCK = "4E";
+    private final String UNLOCK = "4F";
 
 
     public Master(String serialNumber, int minimumPullingInterval, int pullingOffset,
@@ -224,13 +225,13 @@ public class Master implements IRequestStatisticallyProfilable {
                         pc(message.getApplicationID(), CONNECT+"OK", headers);
                         break;
                     case LOCK:
-                        if(!lock) lock = true;
+                        // FIX THIS PLEASE ====== if(!lock) lock = true;
                         LOGGER.warn("#TAG Master [ " + serialNumber + " ]: change lock status required to LOCK");
                         headers.put("Broadcast", "true");
                         pc(message.getApplicationID(), LOCK+"OK", headers);
                         break;
                     case UNLOCK:
-                        if(lock) lock = false;
+                        // FIX THIS PLEASE ====== if(lock) lock = false;
                         LOGGER.warn("#TAG Master [ " + serialNumber + " ]: change lock status required to UNLOCK");
                         headers.put("Broadcast", "true");
                         pc(message.getApplicationID(), UNLOCK+"OK", headers);
@@ -249,6 +250,57 @@ public class Master implements IRequestStatisticallyProfilable {
         public void shutdown() {
             shutdown = true;
         }
+    }
+
+
+    synchronized String processMessage(final String message) {
+        //TODO use this method, please
+        final int messageLength = message.length();
+        final String header = message.substring(0, 2);
+        final String packetSize = message.substring(2, 4);
+        final String sequence = message.substring(4, 6);
+        final String command = message.substring(6, 8);
+        final String data = message.substring(8, messageLength - 2);
+        final String checksum = message.substring(messageLength - 2, messageLength);
+        switch (command) {
+            case CONNECT:
+                return processConnectResponse(data);
+            case LOCK:
+                return processLockRequest(data);
+            case UNLOCK:
+                return processUnlockRequest(data);
+            case STATUS:
+                return processStatusResponse(data);
+            default:
+                return null;
+        }
+    }
+
+    synchronized String processConnectResponse(final String status) {
+        return status;
+    }
+
+    private String lock(final String status, boolean lock) {
+        try {
+            final int lockIndex = Integer.valueOf(status.substring(0, 2));
+            locks[lockIndex] = lock;
+        } catch (Exception e) {
+            LOGGER.error("Error when parsing lock string to boolean");
+            e.printStackTrace();
+        }
+        return status;
+    }
+
+    synchronized String processLockRequest(final String status) {
+        return lock(status, true);
+    }
+
+    synchronized String processUnlockRequest(final String status) {
+        return lock(status, false);
+    }
+
+    synchronized String processStatusResponse(final String status) {
+        return status;
     }
 
 
