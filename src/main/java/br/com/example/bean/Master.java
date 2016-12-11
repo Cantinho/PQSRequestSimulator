@@ -31,6 +31,9 @@ public class Master implements IRequestStatisticallyProfilable {
     private List<Future> runnablePushersFutures;
 
     private List<IStatistics> requestStatisticsList = new LinkedList<IStatistics>();
+    private static byte sequence = 0;
+    private final String OK = "01";
+    private final String ERROR = "02";
 
     /**
      * known commands
@@ -53,6 +56,15 @@ public class Master implements IRequestStatisticallyProfilable {
 
     public Master(String serialNumber) {
         this(serialNumber, 1, 0, 6, 6);
+    }
+
+    private synchronized static byte incrementSequence() {
+        sequence += sequence + (0xFF & 1);
+        return sequence;
+    }
+
+    private synchronized byte getSequence() {
+        return sequence;
     }
 
     public void init() {
@@ -219,22 +231,21 @@ public class Master implements IRequestStatisticallyProfilable {
                 Message message = (new Gson()).fromJson(response, Message.class);
 
                 String command = message.getMessage();
+                final String result = processMessage(message.getMessage());
+
                 switch (command) {
                     case CONNECT:
-                        LOGGER.warn("#TAG Master [ " + serialNumber + " ]: connection required");
-                        pc(message.getApplicationID(), CONNECT+"OK", headers);
+                        pc(message.getApplicationID(), createConnectMessage(result), headers);
                         break;
                     case LOCK:
-                        // FIX THIS PLEASE ====== if(!lock) lock = true;
                         LOGGER.warn("#TAG Master [ " + serialNumber + " ]: change lock status required to LOCK");
                         headers.put("Broadcast", "true");
-                        pc(message.getApplicationID(), LOCK+"OK", headers);
+                        pc(message.getApplicationID(), createStatusMessage(getMasterStatus()), headers);
                         break;
                     case UNLOCK:
-                        // FIX THIS PLEASE ====== if(lock) lock = false;
                         LOGGER.warn("#TAG Master [ " + serialNumber + " ]: change lock status required to UNLOCK");
                         headers.put("Broadcast", "true");
-                        pc(message.getApplicationID(), UNLOCK+"OK", headers);
+                        pc(message.getApplicationID(), createStatusMessage(getMasterStatus()), headers);
                         break;
                     default:
                         LOGGER.warn("#TAG Master COMMAND + [ " + command + " ] NOT FOUND.");
@@ -252,9 +263,44 @@ public class Master implements IRequestStatisticallyProfilable {
         }
     }
 
+    private synchronized String getMasterStatus() {
+        boolean lock0Status = locks[0];
+        final String lock0StatusHex = Byte.toString(lock0Status ? (byte) 0x01 : (byte) 0x02);
+        boolean lock1Status = locks[1];
+        final String lock1StatusHex = Byte.toString(lock1Status ? (byte) 0x01 : (byte) 0x02);
+        return lock0StatusHex + lock1StatusHex;
+    }
+
+    synchronized String createLockMessage(int partition) {
+        return createGenericLockMessage(partition, true);
+    }
+
+    synchronized String createUnlockMessage(int partition) {
+        return createGenericLockMessage(partition, false);
+    }
+
+    synchronized String createStatusMessage(String status) {
+        return createMessage(STATUS, status);
+    }
+
+    synchronized String createConnectMessage(final String code) {
+        return createMessage(CONNECT, code);
+    }
+
+    synchronized String createMessage(final String command, final String data) {
+        final String header = "7B";
+        final byte currentSequence = incrementSequence();
+        //byte command
+        final String dummyChecksum = Byte.toString((byte) 0);
+        final String packetSize = Byte.toString((byte) (5 + (data.length() == 0 ? 0 : data.length()/2)));
+        return header + packetSize + Byte.toString(currentSequence) + command + data + dummyChecksum;
+    }
+
+    synchronized String createGenericLockMessage(int partition, boolean lock) {
+        return createMessage((lock ? LOCK : UNLOCK), Byte.toString(Byte.parseByte( (partition & 0xFF) + "", 16)));
+    }
 
     synchronized String processMessage(final String message) {
-        //TODO use this method, please
         final int messageLength = message.length();
         final String header = message.substring(0, 2);
         final String packetSize = message.substring(2, 4);
@@ -264,6 +310,7 @@ public class Master implements IRequestStatisticallyProfilable {
         final String checksum = message.substring(messageLength - 2, messageLength);
         switch (command) {
             case CONNECT:
+                LOGGER.warn("#TAG Master [ " + serialNumber + " ]: connection required");
                 return processConnectResponse(data);
             case LOCK:
                 return processLockRequest(data);
@@ -277,7 +324,9 @@ public class Master implements IRequestStatisticallyProfilable {
     }
 
     synchronized String processConnectResponse(final String status) {
-        return status;
+        // TODO FIX code mocked
+        //return status;
+        return OK;
     }
 
     private String lock(final String status, boolean lock) {

@@ -33,6 +33,8 @@ public class Slave implements IRequestStatisticallyProfilable {
 
     private List<IStatistics> requestStatisticsList = new LinkedList<IStatistics>();
 
+    private static byte sequence = 0;
+
     // TODO change this to package attributes;
     /**
      * Ficar imprimindo o status local (lock) após pooling.
@@ -49,6 +51,8 @@ public class Slave implements IRequestStatisticallyProfilable {
     private final String STATUS = "58";
     private final String LOCK = "4E";
     private final String UNLOCK = "4F";
+    private final String OK = "01";
+    private final String ERROR = "02";
 
     public Slave(String applicationID, String masterSerialNumber, int minimumPullingInterval, int pullingOffset,
                  int minimumPushingInterval, int pushingOffset) {
@@ -62,6 +66,15 @@ public class Slave implements IRequestStatisticallyProfilable {
 
     public Slave(String applicationID, String masterSerialNumber) {
         this(applicationID, masterSerialNumber, 3, 5, 5, 5);
+    }
+
+    private synchronized static byte incrementSequence() {
+        sequence += sequence + (0xFF & 1);
+        return sequence;
+    }
+
+    private synchronized byte getSequence() {
+        return sequence;
     }
 
     public void init() {
@@ -203,31 +216,7 @@ public class Slave implements IRequestStatisticallyProfilable {
                 if(response != null && !response.equals("{}")){
                     Message msg = new Gson().fromJson(response, Message.class);
                     String res = msg.getMessage();
-                    switch (res) {
-                        case CONNECT + "OK":
-                            LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status connection: [ connected ].");
-                            connected = true;
-                            break;
-                        case LOCK + "00":
-                            locks[0] = true;
-                            LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status locks[0]: [ " + locks[0] + " ].");
-                            break;
-                        case LOCK + "01":
-                            locks[1] = true;
-                            LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status locks[1]: [ " + locks[1] + " ].");
-                            break;
-                        case UNLOCK + "00":
-                            locks[0] = false;
-                            LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status locks[0]: [ " + locks[0] + " ].");
-                            break;
-                        case UNLOCK + "01":
-                            locks[1] = false;
-                            LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status locks[1]: [ " + locks[1] + " ].");
-                            break;
-                        default:
-                            LOGGER.warn("#TAG Slave COMMAND + [ " + response + " ] NOT FOUND.");
-                            break;
-                    }
+                    processMessage(res);
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -241,8 +230,36 @@ public class Slave implements IRequestStatisticallyProfilable {
         }
     }
 
+
+
+    synchronized String createLockMessage(int partition) {
+        return createGenericLockMessage(partition, true);
+    }
+
+    synchronized String createUnlockMessage(int partition) {
+        return createGenericLockMessage(partition, false);
+    }
+
+    synchronized String createConnectMessage() {
+        return createMessage(CONNECT, "");
+
+    }
+
+    synchronized String createMessage(final String command, final String data) {
+        final String header = "7B";
+        final byte currentSequence = incrementSequence();
+        //byte command
+        final String dummyChecksum = Byte.toString((byte) 0);
+        final String packetSize = Byte.toString((byte) (5 + (data.length() == 0 ? 0 : data.length()/2)));
+        return header + packetSize + Byte.toString(currentSequence) + command + data + dummyChecksum;
+    }
+
+    synchronized String createGenericLockMessage(int partition, boolean lock) {
+        return createMessage((lock ? LOCK : UNLOCK), Byte.toString(Byte.parseByte( (partition & 0xFF) + "", 16)));
+    }
+
     synchronized String processMessage(final String message) {
-        //TODO use this method, please
+        // TODO something useful with header, packetSize, sequence and checksum.
         final int messageLength = message.length();
         final String header = message.substring(0, 2);
         final String packetSize = message.substring(2, 4);
@@ -260,11 +277,19 @@ public class Slave implements IRequestStatisticallyProfilable {
             case STATUS:
                 return processStatusRequest(data);
             default:
+                LOGGER.warn("#TAG Slave COMMAND + [ " + command + " ] NOT FOUND.");
                 return null;
         }
     }
 
     synchronized String processConnectResponse(final String status) {
+        final Integer statusCode = Integer.valueOf(status);
+        if(statusCode == 1) {
+            connected = true;
+            LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status connection: [ connected ].");
+        } else {
+            connected = false;
+        }
         return status;
     }
 
@@ -276,18 +301,19 @@ public class Slave implements IRequestStatisticallyProfilable {
         return status;
     }
 
-    synchronized String processStatusRequest(final String status) {
-        final String lock0 = status.substring(0, 2);
-        final String lock1 = status.substring(2, 4);
-
+    synchronized String processStatusRequest(final String data) {
+        final String lock0 = data.substring(0, 2);
+        final String lock1 = data.substring(2, 4);
         try {
             locks[0] = Integer.valueOf(lock0) == 1 ? true : false;
             locks[1] = Integer.valueOf(lock1) == 1 ? true : false;
+            LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status locks[0]:[ " + locks[0] + " ] locks[1]:[ " + locks[1] + " ].");
+            return OK;
         } catch (Exception e) {
             LOGGER.error("Error when parsing lock string to boolean");
             e.printStackTrace();
         }
-        return status;
+        return ERROR;
     }
 
 
@@ -329,10 +355,10 @@ public class Slave implements IRequestStatisticallyProfilable {
                     String response = null;
                     final int randomLock = new Random().nextInt(2);
                     if(locks[randomLock]) {
-                        response = pa(UNLOCK);
+                        response = pa(createUnlockMessage(randomLock));
                         LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status locks[" + randomLock + "]: [ CHANGE lock REQUIRED ] to [ UNLOCK ].");
                     } else {
-                        response = pa(LOCK);
+                        response = pa(createLockMessage(randomLock));
                         LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status locks[" + randomLock + "]: [ CHANGE lock REQUIRED ] to [ LOCK ].");
                     }
                     LOGGER.info("PA POST CENTRAL-SN [" + masterSerialNumber + "] APP-ID [" + applicationID + "]: " + response);
@@ -352,7 +378,7 @@ public class Slave implements IRequestStatisticallyProfilable {
         headers.put("Content-Type", "application/json");
         String response = "";
         try {
-            response = POST("/sconn", headers, CONNECT);
+            response = POST("/sconn", headers, createConnectMessage());
         }catch (Exception e){
             e.printStackTrace();
         }
@@ -360,8 +386,5 @@ public class Slave implements IRequestStatisticallyProfilable {
         return response.equals("RECEIVED");
     }
 
-    private String createMessage(final String command) {
-        return null;
-    }
 
 }
