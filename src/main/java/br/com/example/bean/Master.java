@@ -5,6 +5,7 @@ import br.com.example.statistics.IRequestStatisticallyProfilable;
 import br.com.example.statistics.IStatistics;
 import br.com.example.statistics.RequestStatistics;
 import br.com.processor.*;
+import br.com.processor.mapper.MessageMapper;
 import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,6 +70,9 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
     }
 
     public void init() {
+
+        processResponse(connectToCloudService());
+
         runnablePullersFutures = new ArrayList<Future>();
         runnablePushersFutures = new ArrayList<Future>();
     }
@@ -140,7 +144,6 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
         long startTimestamp = new Date().getTime();
         Map<String, String> headers = new HashMap<String, String>();
         headers.put("Serial-Number", serialNumber);
-        headers.put("Content-Type", "application/json");
 
         String response = GET("/cpull", headers);
         long endTimestamp = new Date().getTime();
@@ -272,8 +275,10 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
     @Override
     public void processResponse(String response) {
 
+        MessageMapper msg = new Gson().fromJson(response, MessageMapper.class);
+
         IMessageProcessor messageProcessor = new MessageProcessor();
-        final CloudiaMessage processedMessage = (CloudiaMessage) messageProcessor.processMessage(response);
+        final CloudiaMessage processedMessage = (CloudiaMessage) messageProcessor.processMessage(msg.getMsg());
 
         switch (processedMessage.getCommand()) {
             case CONNECT:
@@ -386,18 +391,17 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
         }
     }
 
-    private boolean connectToCloudService(){
+    private String connectToCloudService(){
         Map<String, String> headers = new HashMap<String, String>();
         headers.put("Serial-Number", serialNumber);
         headers.put("Content-Type", "application/json");
         String response = "";
         try {
-            processResponse(POST("/cconn", headers, createConnectMessage("")));
+            response = POST("/cconn", headers, createConnectMessage(""));
         }catch (Exception e){
             e.printStackTrace();
         }
-
-        return response.equals("RECEIVED");
+        return response;
     }
 
 }

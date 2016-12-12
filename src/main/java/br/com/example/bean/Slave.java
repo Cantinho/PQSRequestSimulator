@@ -14,6 +14,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static br.com.example.request.Request.GET;
 import static br.com.example.request.Request.POST;
 
 /**
@@ -81,7 +82,7 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
     public void init() {
 
         LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status connection: [ not connected ]");
-        if(connectToCentral()){
+        if(connectToCloudService()){
             LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status connection: [ connection required ]");
         }
 
@@ -148,7 +149,7 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
 
 
     /**
-     * executes POST /apull for devices
+     * executes POST /apush for devices
      * @return
      */
     private synchronized String apush(String body){
@@ -157,7 +158,6 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
         headers.put("Serial-Number", masterSerialNumber);
         headers.put("Application-ID", applicationID);
         headers.put("Content-Type", "application/json");
-
 
         String response = POST("/apush", headers, body);
 
@@ -173,19 +173,18 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
      * executes POST /apull for devices
      * @return
      */
-    private synchronized String apull(){
+    private synchronized String apull(Integer messageAmount){
         long startTimestamp = new Date().getTime();
         Map<String, String> headers = new HashMap<String, String>();
         headers.put("Serial-Number", masterSerialNumber);
         headers.put("Application-ID", applicationID);
-        headers.put("Content-Type", "application/json");
+        headers.put("Message-Amount", messageAmount.toString());
 
-
-        String response = POST("/apull", headers, null);
+        String response = GET("/apull", headers);
 
         long endTimestamp = new Date().getTime();
         synchronized (requestStatisticsList) {
-            RequestStatistics requestStatistics = new RequestStatistics(masterSerialNumber + "_" + applicationID, body == null ? "apull - wbody" : "apull - nobody", startTimestamp, endTimestamp);
+            RequestStatistics requestStatistics = new RequestStatistics(masterSerialNumber + "_" + applicationID, "apull - wbody", startTimestamp, endTimestamp);
             requestStatisticsList.add(requestStatistics);
         }
         return response;
@@ -249,7 +248,7 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
                 //e.printStackTrace();
             }
             try {
-                String response = apull(null);
+                String response = apull(1);
                 if(response != null && !response.equals("{}")){
                     Message msg = new Gson().fromJson(response, Message.class);
                     String res = msg.getMessage();
@@ -392,10 +391,10 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
                     String response = null;
                     final int randomLock = new Random().nextInt(2);
                     if(locks[randomLock]) {
-                        response = apull(createUnlockMessage(randomLock));
+                        response = apush(createUnlockMessage(randomLock));
                         LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status locks[" + randomLock + "]: [ CHANGE lock REQUIRED ] to [ UNLOCK ].");
                     } else {
-                        response = apull(createLockMessage(randomLock));
+                        response = apush(createLockMessage(randomLock));
                         LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status locks[" + randomLock + "]: [ CHANGE lock REQUIRED ] to [ LOCK ].");
                     }
                     LOGGER.info("PA POST CENTRAL-SN [" + masterSerialNumber + "] APP-ID [" + applicationID + "]: " + response);
@@ -408,14 +407,14 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
         }
     }
 
-    private boolean connectToCentral(){
+    private boolean connectToCloudService(){
         Map<String, String> headers = new HashMap<String, String>();
         headers.put("Serial-Number", masterSerialNumber);
         headers.put("Application-ID", applicationID);
         headers.put("Content-Type", "application/json");
         String response = "";
         try {
-            response = POST("/sconn", headers, createConnectMessage());
+            response = POST("/aconn", headers, createConnectMessage());
         }catch (Exception e){
             e.printStackTrace();
         }
