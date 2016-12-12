@@ -4,6 +4,7 @@ package br.com.example.bean;
 import br.com.example.statistics.IRequestStatisticallyProfilable;
 import br.com.example.statistics.IStatistics;
 import br.com.example.statistics.RequestStatistics;
+import br.com.processor.*;
 import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +18,7 @@ import static br.com.example.request.Request.POST;
 /**
  * Created by jordao on 27/11/16.
  */
-public class Master implements IRequestStatisticallyProfilable {
+public class Master implements IRequestStatisticallyProfilable, ComunicationProtocol {
 
     private final static Logger LOGGER = LoggerFactory.getLogger(Master.class);
     private static int statisticalSequence = 0;
@@ -132,53 +133,53 @@ public class Master implements IRequestStatisticallyProfilable {
 
 
     /**
-     * executes GET /pull for centrals
+     * executes GET /cpull for centrals
      * @return
      */
-    private String pull(){
+    private String cpull(){
         long startTimestamp = new Date().getTime();
         Map<String, String> headers = new HashMap<String, String>();
         headers.put("Serial-Number", serialNumber);
         headers.put("Content-Type", "application/json");
 
-        String response = GET("/pull", headers);
+        String response = GET("/cpull", headers);
         long endTimestamp = new Date().getTime();
         synchronized (requestStatisticsList) {
-            RequestStatistics requestStatistics = new RequestStatistics(serialNumber, "pull", startTimestamp, endTimestamp);
+            RequestStatistics requestStatistics = new RequestStatistics(serialNumber, "cpull", startTimestamp, endTimestamp);
             requestStatisticsList.add(requestStatistics);
         }
         return response;
     }
 
     /**
-     * executes POST /pc for centrals
+     * executes POST /cpush for centrals
      * @param message
      * @return
      */
-    private String pc(Message message, Map<String, String> headers){
+    private String cpush(Message message, Map<String, String> headers){
         long startTimestamp = new Date().getTime();
         headers.put("Application-ID", message.getApplicationID());
         headers.put("Content-Type", "application/json");
         String body = message.getMessage();
 
-        String response = POST("/pc", headers, body);
+        String response = POST("/cpush", headers, body);
         long endTimestamp = new Date().getTime();
         synchronized (requestStatisticsList) {
-            RequestStatistics requestStatistics = new RequestStatistics(serialNumber, "pc", startTimestamp, endTimestamp);
+            RequestStatistics requestStatistics = new RequestStatistics(serialNumber, "cpush", startTimestamp, endTimestamp);
             requestStatisticsList.add(requestStatistics);
         }
         return response;
     }
 
-    private String pc(String applicationID, String body, Map<String, String> headers){
+    private String cpush(String applicationID, String body, Map<String, String> headers){
         long startTimestamp = new Date().getTime();
         headers.put("Application-ID", applicationID);
         headers.put("Content-Type", "application/json");
 
-        String response = POST("/pc", headers, body);
+        String response = POST("/cpush", headers, body);
         long endTimestamp = new Date().getTime();
         synchronized (requestStatisticsList) {
-            RequestStatistics requestStatistics = new RequestStatistics(serialNumber, "pc", startTimestamp, endTimestamp);
+            RequestStatistics requestStatistics = new RequestStatistics(serialNumber, "cpush", startTimestamp, endTimestamp);
             requestStatisticsList.add(requestStatistics);
         }
         return response;
@@ -222,46 +223,84 @@ public class Master implements IRequestStatisticallyProfilable {
                 //e.printStackTrace();
             }
 
-            String response = pull();
-            LOGGER.info("PULL CENTRAL-SN [" + serialNumber + "]: " + response);
-            if(!response.equals("{}")){
-                Map<String, String> headers = new HashMap<String, String>();
-                headers.put("Serial-Number", serialNumber);
-
-                Message message = (new Gson()).fromJson(response, Message.class);
-
-                String command = message.getMessage();
-                final String result = processMessage(message.getMessage());
-
-                switch (command) {
-                    case CONNECT:
-                        pc(message.getApplicationID(), createConnectMessage(result), headers);
-                        break;
-                    case LOCK:
-                        LOGGER.warn("#TAG Master [ " + serialNumber + " ]: change lock status required to LOCK");
-                        headers.put("Broadcast", "true");
-                        pc(message.getApplicationID(), createStatusMessage(getMasterStatus()), headers);
-                        break;
-                    case UNLOCK:
-                        LOGGER.warn("#TAG Master [ " + serialNumber + " ]: change lock status required to UNLOCK");
-                        headers.put("Broadcast", "true");
-                        pc(message.getApplicationID(), createStatusMessage(getMasterStatus()), headers);
-                        break;
-                    default:
-                        LOGGER.warn("#TAG Master COMMAND + [ " + command + " ] NOT FOUND.");
-                        pc(message, headers);
-                }
-
-
-                //response = pc(message, headers);
-                LOGGER.info("PC CENTRAL-SN [" + serialNumber + "] APP-ID [" + message.getApplicationID() + "]: " + response);
-            }
+            processRequest(cpull());
         }
 
         public void shutdown() {
             shutdown = true;
         }
+
+
     }
+
+    @Override
+    public void processRequest(String request) {
+        LOGGER.info("PULL CENTRAL-SN [" + serialNumber + "]: " + request);
+        if(!request.equals("{}")){
+            Map<String, String> headers = new HashMap<String, String>();
+            headers.put("Serial-Number", serialNumber);
+
+            Message message = (new Gson()).fromJson(request, Message.class);
+
+
+            IMessageProcessor messageProcessor = new MessageProcessor();
+            final CloudiaMessage processedMessage = (CloudiaMessage) messageProcessor.processMessage(message.getMessage());
+
+            switch (processedMessage.getCommand()) {
+                case LOCK:
+                    LOGGER.warn("#TAG Master [ " + serialNumber + " ]: change lock status required to LOCK");
+                    headers.put("Broadcast", "true");
+                    processLock(processedMessage.getData(), true);
+                    processResponse(cpush(message.getApplicationID(), createStatusMessage(getMasterStatus()), headers));
+                    break;
+                case UNLOCK:
+                    LOGGER.warn("#TAG Master [ " + serialNumber + " ]: change lock status required to UNLOCK");
+                    headers.put("Broadcast", "true");
+                    processLock(processedMessage.getData(), false);
+                    processResponse(cpush(message.getApplicationID(), createStatusMessage(getMasterStatus()), headers));
+                    break;
+                default:
+                    LOGGER.warn("#TAG Master COMMAND + [ " + processedMessage.getCommand() + " ] NOT FOUND.");
+                    cpush(message, headers);
+                    break;
+            }
+
+            LOGGER.info("PC CENTRAL-SN [" + serialNumber + "] APP-ID [" + message.getApplicationID() + "]: " + request);
+        }
+    }
+
+    @Override
+    public void processResponse(String response) {
+
+        IMessageProcessor messageProcessor = new MessageProcessor();
+        final CloudiaMessage processedMessage = (CloudiaMessage) messageProcessor.processMessage(response);
+
+        switch (processedMessage.getCommand()) {
+            case CONNECT:
+                processConnectResponse(processedMessage.getData());
+                break;
+            case STATUS:
+                LOGGER.warn("#TAG Master [ " + serialNumber + " ]: STATUS");
+                processStatusResponse(processedMessage.getData());
+                break;
+            default:
+                LOGGER.warn("#TAG Master COMMAND + [ " + processedMessage.getCommand() + " ] NOT FOUND.");
+        }
+    }
+
+    synchronized String processConnectResponse(final String status) {
+        // TODO FIX code mocked
+        //return status;
+        return OK;
+    }
+
+    synchronized String processStatusResponse(final String status) {
+        // TODO FIX code mocked
+        //return status;
+        return OK;
+    }
+
+
 
     private synchronized String getMasterStatus() {
         boolean lock0Status = locks[0];
@@ -269,14 +308,6 @@ public class Master implements IRequestStatisticallyProfilable {
         boolean lock1Status = locks[1];
         final String lock1StatusHex = Byte.toString(lock1Status ? (byte) 0x01 : (byte) 0x02);
         return lock0StatusHex + lock1StatusHex;
-    }
-
-    synchronized String createLockMessage(int partition) {
-        return createGenericLockMessage(partition, true);
-    }
-
-    synchronized String createUnlockMessage(int partition) {
-        return createGenericLockMessage(partition, false);
     }
 
     synchronized String createStatusMessage(String status) {
@@ -287,71 +318,25 @@ public class Master implements IRequestStatisticallyProfilable {
         return createMessage(CONNECT, code);
     }
 
-    synchronized String createMessage(final String command, final String data) {
-        final String header = "7B";
+    private synchronized String createMessage(final String command, final String data) {
         final byte currentSequence = incrementSequence();
         //byte command
         final String dummyChecksum = Byte.toString((byte) 0);
-        final String packetSize = Byte.toString((byte) (5 + (data.length() == 0 ? 0 : data.length()/2)));
-        return header + packetSize + Byte.toString(currentSequence) + command + data + dummyChecksum;
+
+        IMessageProcessor messageProcessor = new MessageProcessor();
+        return messageProcessor.synthMessage(new CloudiaMessage("7B", Byte.toString(currentSequence), command, data, dummyChecksum));
     }
 
-    synchronized String createGenericLockMessage(int partition, boolean lock) {
-        return createMessage((lock ? LOCK : UNLOCK), Byte.toString(Byte.parseByte( (partition & 0xFF) + "", 16)));
-    }
 
-    synchronized String processMessage(final String message) {
-        final int messageLength = message.length();
-        final String header = message.substring(0, 2);
-        final String packetSize = message.substring(2, 4);
-        final String sequence = message.substring(4, 6);
-        final String command = message.substring(6, 8);
-        final String data = message.substring(8, messageLength - 2);
-        final String checksum = message.substring(messageLength - 2, messageLength);
-        switch (command) {
-            case CONNECT:
-                LOGGER.warn("#TAG Master [ " + serialNumber + " ]: connection required");
-                return processConnectResponse(data);
-            case LOCK:
-                return processLockRequest(data);
-            case UNLOCK:
-                return processUnlockRequest(data);
-            case STATUS:
-                return processStatusResponse(data);
-            default:
-                return null;
-        }
-    }
-
-    synchronized String processConnectResponse(final String status) {
-        // TODO FIX code mocked
-        //return status;
-        return OK;
-    }
-
-    private String lock(final String status, boolean lock) {
+    void processLock(final String lock, boolean isLocked) {
         try {
-            final int lockIndex = Integer.valueOf(status.substring(0, 2));
-            locks[lockIndex] = lock;
+            final int lockIndex = Integer.valueOf(lock.substring(0, 2));
+            locks[lockIndex] = isLocked;
         } catch (Exception e) {
             LOGGER.error("Error when parsing lock string to boolean");
             e.printStackTrace();
         }
-        return status;
     }
-
-    synchronized String processLockRequest(final String status) {
-        return lock(status, true);
-    }
-
-    synchronized String processUnlockRequest(final String status) {
-        return lock(status, false);
-    }
-
-    synchronized String processStatusResponse(final String status) {
-        return status;
-    }
-
 
     class MasterPusher extends Thread implements Runnable {
         private volatile boolean shutdown = false;
@@ -391,7 +376,7 @@ public class Master implements IRequestStatisticallyProfilable {
                 headers.put("Broadcast", "true");
 
                 Message message = new Message(serialNumber, null, String.valueOf(new Date().getTime()), "10", "7B43FFFBBBCCCAAADDD");
-                String response = pc(message, headers);
+                String response = cpush(message, headers);
                 LOGGER.info("PC CENTRAL-SN [" + serialNumber + "] APP-ID [" + message.getApplicationID() + "]: " + response);
             }
         }
@@ -399,6 +384,20 @@ public class Master implements IRequestStatisticallyProfilable {
         public void shutdown() {
             shutdown = true;
         }
+    }
+
+    private boolean connectToCloudService(){
+        Map<String, String> headers = new HashMap<String, String>();
+        headers.put("Serial-Number", serialNumber);
+        headers.put("Content-Type", "application/json");
+        String response = "";
+        try {
+            processResponse(POST("/cconn", headers, createConnectMessage("")));
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
+        return response.equals("RECEIVED");
     }
 
 }
