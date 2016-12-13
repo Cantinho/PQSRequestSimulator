@@ -15,6 +15,7 @@ import java.util.concurrent.*;
 
 import static br.com.example.request.Request.GET;
 import static br.com.example.request.Request.POST;
+import static br.com.processor.CloudiaMessage.*;
 
 /**
  * Created by jordao on 27/11/16.
@@ -34,17 +35,13 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
 
     private List<IStatistics> requestStatisticsList = new LinkedList<IStatistics>();
     private static byte sequence = 0;
-    private final String OK = "01";
-    private final String ERROR = "02";
+
 
     /**
      * known commands
      */
     private boolean[] locks = {false, false};
-    private final String CONNECT = "43";
-    private final String STATUS = "58";
-    private final String LOCK = "4E";
-    private final String UNLOCK = "4F";
+
 
 
     public Master(String serialNumber, int minimumPullingInterval, int pullingOffset,
@@ -154,16 +151,8 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
         return response;
     }
 
-    /**
-     * executes POST /cpush for centrals
-     * @param message
-     * @return
-     */
-    private String cpush(Message message, Map<String, String> headers){
+    private String cpush(String body, Map<String, String> headers){
         long startTimestamp = new Date().getTime();
-        headers.put("Application-ID", message.getApplicationID());
-        headers.put("Content-Type", "application/json");
-        String body = message.getMessage();
 
         String response = POST("/cpush", headers, body);
         long endTimestamp = new Date().getTime();
@@ -171,20 +160,8 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
             RequestStatistics requestStatistics = new RequestStatistics(serialNumber, "cpush", startTimestamp, endTimestamp);
             requestStatisticsList.add(requestStatistics);
         }
-        return response;
-    }
-
-    private String cpush(String applicationID, String body, Map<String, String> headers){
-        long startTimestamp = new Date().getTime();
-        headers.put("Application-ID", applicationID);
-        headers.put("Content-Type", "application/json");
-
-        String response = POST("/cpush", headers, body);
-        long endTimestamp = new Date().getTime();
-        synchronized (requestStatisticsList) {
-            RequestStatistics requestStatistics = new RequestStatistics(serialNumber, "cpush", startTimestamp, endTimestamp);
-            requestStatisticsList.add(requestStatistics);
-        }
+        System.out.println("Master - cpush - body:" + body);
+        System.out.println("Master - cpush - response:[" + response +"]");
         return response;
     }
 
@@ -233,37 +210,43 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
             shutdown = true;
         }
 
-
     }
 
     @Override
     public void processRequest(String request) {
         if(request != null && !request.equals("{}")){
-            Map<String, String> headers = new HashMap<String, String>();
-            headers.put("Serial-Number", serialNumber);
 
             Message message = (new Gson()).fromJson(request, Message.class);
 
+            Map<String, String> headers = new HashMap<String, String>();
+            headers.put("Serial-Number", serialNumber);
+            headers.put("Application-ID", message.getApplicationID());
+            headers.put("Content-Type", "application/json");
 
-            IMessageProcessor messageProcessor = new MessageProcessor();
+            MessageMapper messageMapper = new MessageMapper();
+
+            IMessageProcessor messageProcessor = new CloudiaMessageProcessor();
             final CloudiaMessage processedMessage = (CloudiaMessage) messageProcessor.processMessage(message.getMessage());
 
             switch (processedMessage.getCommand()) {
-                case LOCK:
+                case LOCK: {
                     LOGGER.warn("#TAG Master [ " + serialNumber + " ]: change lock status required to LOCK");
                     headers.put("Broadcast", "true");
                     processLock(processedMessage.getData(), true);
-                    processResponse(cpush(message.getApplicationID(), createStatusMessage(getMasterStatus()), headers));
+                    messageMapper.setMsg(createStatusMessage(getMasterStatus()));
+                    processResponse(cpush(messageMapper.toJson(), headers));
                     break;
-                case UNLOCK:
+                }
+                case UNLOCK: {
                     LOGGER.warn("#TAG Master [ " + serialNumber + " ]: change lock status required to UNLOCK");
                     headers.put("Broadcast", "true");
                     processLock(processedMessage.getData(), false);
-                    processResponse(cpush(message.getApplicationID(), createStatusMessage(getMasterStatus()), headers));
+                    messageMapper.setMsg(createStatusMessage(getMasterStatus()));
+                    processResponse(cpush(messageMapper.toJson(), headers));
                     break;
+                }
                 default:
                     LOGGER.warn("#TAG Master COMMAND + [ " + processedMessage.getCommand() + " ] NOT FOUND.");
-                    cpush(message, headers);
                     break;
             }
 
@@ -274,13 +257,16 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
     @Override
     public void processResponse(String response) {
 
+        System.out.println("Master - processResponse - response:" + response);
         MessageMapper msg = new Gson().fromJson(response, MessageMapper.class);
-
-        IMessageProcessor messageProcessor = new MessageProcessor();
+        System.out.println("Master - processResponse - msg:" + msg);
+        System.out.println("Master - processResponse - msg.getMsg():" + (msg == null ? "null" : msg.getMsg()));
+        IMessageProcessor messageProcessor = new CloudiaMessageProcessor();
         final CloudiaMessage processedMessage = (CloudiaMessage) messageProcessor.processMessage(msg.getMsg());
 
         switch (processedMessage.getCommand()) {
             case CONNECT:
+                LOGGER.warn("#TAG Master [ " + serialNumber + " ]: CONNECT");
                 processConnectResponse(processedMessage.getData());
                 break;
             case STATUS:
@@ -304,8 +290,6 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
         return OK;
     }
 
-
-
     private synchronized String getMasterStatus() {
         boolean lock0Status = locks[0];
         final String lock0StatusHex = Byte.toString(lock0Status ? (byte) 0x01 : (byte) 0x02);
@@ -323,13 +307,16 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
     }
 
     private synchronized String createMessage(final String command, final String data) {
-        final byte currentSequence = incrementSequence();
+        final String currentSequence = String.format("%02d",(incrementSequence() & 0xFF));
         //byte command
-        final String dummyChecksum = Byte.toString((byte) 0);
+        final String dummyChecksum = String.format("%02d", (byte) 0);
 
-        IMessageProcessor messageProcessor = new MessageProcessor();
-        return messageProcessor.synthMessage(new CloudiaMessage("7B", Byte.toString(currentSequence), command, data, dummyChecksum));
+        IMessageProcessor messageProcessor = new CloudiaMessageProcessor();
+        CloudiaMessage cm = new CloudiaMessage("7B", currentSequence, command, data, dummyChecksum);
+        cm.recalculateChecksum();
+        return messageProcessor.synthMessage(cm);
     }
+
 
 
     void processLock(final String lock, boolean isLocked) {
@@ -366,6 +353,7 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
             }
 
             if(!sleepMode) {
+                System.out.println("Master [" + serialNumber + "] - Pusher - LIVE");
                 Random rand = new Random();
                 int randomInterval = rand.nextInt(pushingOffset + 1);
 
@@ -375,13 +363,20 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
                     //e.printStackTrace();
                 }
 
-                Map<String, String> headers = new HashMap<String, String>();
-                headers.put("Serial-Number", serialNumber);
-                headers.put("Broadcast", "true");
+                try {
+                    Map<String, String> headers = new HashMap<String, String>();
+                    headers.put("Serial-Number", serialNumber);
+                    headers.put("Broadcast", "true");
 
-                Message message = new Message(serialNumber, null, String.valueOf(new Date().getTime()), "10", "7B43FFFBBBCCCAAADDD");
-                String response = cpush(message, headers);
-                LOGGER.info("PC CENTRAL-SN [" + serialNumber + "] APP-ID [" + message.getApplicationID() + "]: " + response);
+                    MessageMapper messageMapper = new MessageMapper();
+                    messageMapper.setMsg(createStatusMessage(getMasterStatus()));
+
+                    processResponse(cpush(messageMapper.toJson(), headers));
+                    LOGGER.info("PC CENTRAL-SN [" + serialNumber + "] APP-ID [ broadcast ]: " + messageMapper.getMsg());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
             }
         }
 
@@ -396,7 +391,9 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
         headers.put("Content-Type", "application/json");
         String response = "";
         try {
-            response = POST("/cconn", headers, createConnectMessage(""));
+            MessageMapper messageMapper = new MessageMapper();
+            messageMapper.setMsg(createConnectMessage(""));
+            response = POST("/cconn", headers, messageMapper.toJson());
         }catch (Exception e){
             e.printStackTrace();
         }
