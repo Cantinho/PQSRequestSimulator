@@ -366,6 +366,7 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
                 try {
                     Map<String, String> headers = new HashMap<String, String>();
                     headers.put("Serial-Number", serialNumber);
+                    headers.put("Content-Type", "application/json");
                     headers.put("Broadcast", "true");
 
                     MessageMapper messageMapper = new MessageMapper();
