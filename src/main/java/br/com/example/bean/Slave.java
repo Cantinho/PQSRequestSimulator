@@ -3,7 +3,11 @@ package br.com.example.bean;
 import br.com.example.statistics.IRequestStatisticallyProfilable;
 import br.com.example.statistics.IStatistics;
 import br.com.example.statistics.RequestStatistics;
+import br.com.processor.CloudiaMessage;
 import br.com.processor.ComunicationProtocol;
+import br.com.processor.IMessageProcessor;
+import br.com.processor.MessageProcessor;
+import br.com.processor.mapper.MessageMapper;
 import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +18,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static br.com.example.request.Request.GET;
 import static br.com.example.request.Request.POST;
 
 /**
@@ -80,10 +85,8 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
 
     public void init() {
 
-        LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status connection: [ not connected ]");
-        if(connectToCentral()){
-            LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status connection: [ connection required ]");
-        }
+
+        processResponse(connectToCloudService());
 
         runnablePullerFutures = new ArrayList<Future>();
         runnablePusherFutures = new ArrayList<Future>();
@@ -148,7 +151,7 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
 
 
     /**
-     * executes POST /apull for devices
+     * executes POST /apush for devices
      * @return
      */
     private synchronized String apush(String body){
@@ -157,7 +160,6 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
         headers.put("Serial-Number", masterSerialNumber);
         headers.put("Application-ID", applicationID);
         headers.put("Content-Type", "application/json");
-
 
         String response = POST("/apush", headers, body);
 
@@ -173,18 +175,18 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
      * executes POST /apull for devices
      * @return
      */
-    private synchronized String apull(){
+    private synchronized String apull(Integer messageAmount){
         long startTimestamp = new Date().getTime();
         Map<String, String> headers = new HashMap<String, String>();
         headers.put("Serial-Number", masterSerialNumber);
         headers.put("Application-ID", applicationID);
-        headers.put("Content-Type", "application/json");
+        headers.put("Message-Amount", messageAmount.toString());
 
-        String response = POST("/apull", headers, null);
+        String response = GET("/apull", headers);
 
         long endTimestamp = new Date().getTime();
         synchronized (requestStatisticsList) {
-            RequestStatistics requestStatistics = new RequestStatistics(masterSerialNumber + "_" + applicationID, "apull", startTimestamp, endTimestamp);
+            RequestStatistics requestStatistics = new RequestStatistics(masterSerialNumber + "_" + applicationID, "apull - wbody", startTimestamp, endTimestamp);
             requestStatisticsList.add(requestStatistics);
         }
         return response;
@@ -213,13 +215,47 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
 
 
     @Override
-    public void processRequest(String s) {
+    public void processRequest(String request) {
 
+        if(request != null && !request.equals("{}")){
+
+            MessageMapper msg = new Gson().fromJson(request, MessageMapper.class);
+
+            IMessageProcessor messageProcessor = new MessageProcessor();
+            final CloudiaMessage processedMessage = (CloudiaMessage) messageProcessor.processMessage(msg.getMsg());
+
+            switch (processedMessage.getCommand()) {
+                case STATUS:
+                    processStatusRequest(processedMessage.getData());
+                    break;
+                default:
+                    LOGGER.warn("#TAG Slave COMMAND + [ " + processedMessage.getCommand() + " ] NOT FOUND.");
+                    break;
+            }
+        }
     }
 
     @Override
-    public void processResponse(String s) {
+    public void processResponse(String response) {
 
+        MessageMapper msg = new Gson().fromJson(response, MessageMapper.class);
+
+        IMessageProcessor messageProcessor = new MessageProcessor();
+        final CloudiaMessage processedMessage = (CloudiaMessage) messageProcessor.processMessage(msg.getMsg());
+
+        switch (processedMessage.getCommand()) {
+            case CONNECT:
+                processConnectResponse(processedMessage.getData());
+                break;
+            case LOCK:
+                processLockResponse(processedMessage.getData());
+                break;
+            case UNLOCK:
+                processUnlockResponse(processedMessage.getData());
+                break;
+            default:
+                LOGGER.warn("#TAG Slave COMMAND + [ " + processedMessage.getCommand() + " ] NOT FOUND.");
+        }
     }
 
     class SlavePuller extends Thread implements Runnable {
@@ -246,12 +282,7 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
                 //e.printStackTrace();
             }
             try {
-                String response = apull();
-                if(response != null && !response.equals("{}")){
-                    Message msg = new Gson().fromJson(response, Message.class);
-                    String res = msg.getMessage();
-                    processMessage(res);
-                }
+                processRequest(apull(1));
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -290,30 +321,6 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
 
     synchronized String createGenericLockMessage(int partition, boolean lock) {
         return createMessage((lock ? LOCK : UNLOCK), Byte.toString(Byte.parseByte( (partition & 0xFF) + "", 16)));
-    }
-
-    synchronized String processMessage(final String message) {
-        // TODO something useful with header, packetSize, sequence and checksum.
-        final int messageLength = message.length();
-        final String header = message.substring(0, 2);
-        final String packetSize = message.substring(2, 4);
-        final String sequence = message.substring(4, 6);
-        final String command = message.substring(6, 8);
-        final String data = message.substring(8, messageLength - 2);
-        final String checksum = message.substring(messageLength - 2, messageLength);
-        switch (command) {
-            case CONNECT:
-                return processConnectResponse(data);
-            case LOCK:
-                return processLockResponse(data);
-            case UNLOCK:
-                return processUnlockResponse(data);
-            case STATUS:
-                return processStatusRequest(data);
-            default:
-                LOGGER.warn("#TAG Slave COMMAND + [ " + command + " ] NOT FOUND.");
-                return null;
-        }
     }
 
     synchronized String processConnectResponse(final String status) {
@@ -384,18 +391,15 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
                     //e.printStackTrace();
                 }
 
-                //String body = "7B4CAAABBBCCCDDDEEEFFF";
                 if(connected) {
-                    String response = null;
                     final int randomLock = new Random().nextInt(2);
                     if(locks[randomLock]) {
-                        response = apush(createUnlockMessage(randomLock));
+                        processResponse(apush(createUnlockMessage(randomLock)));
                         LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status locks[" + randomLock + "]: [ CHANGE lock REQUIRED ] to [ UNLOCK ].");
                     } else {
-                        response = apush(createLockMessage(randomLock));
+                        processResponse(apush(createLockMessage(randomLock)));
                         LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status locks[" + randomLock + "]: [ CHANGE lock REQUIRED ] to [ LOCK ].");
                     }
-                    LOGGER.info("PA POST CENTRAL-SN [" + masterSerialNumber + "] APP-ID [" + applicationID + "]: " + response);
                 }
             }
         }
@@ -405,19 +409,19 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
         }
     }
 
-    private boolean connectToCentral(){
+    private String connectToCloudService(){
         Map<String, String> headers = new HashMap<String, String>();
         headers.put("Serial-Number", masterSerialNumber);
         headers.put("Application-ID", applicationID);
         headers.put("Content-Type", "application/json");
         String response = "";
         try {
-            response = POST("/sconn", headers, createConnectMessage());
+            response = POST("/aconn", headers, createConnectMessage());
         }catch (Exception e){
             e.printStackTrace();
         }
 
-        return response.equals("RECEIVED");
+        return response;
     }
 
 
