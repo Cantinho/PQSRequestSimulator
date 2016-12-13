@@ -41,7 +41,7 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
      * known commands
      */
     private boolean[] locks = {false, false};
-
+    private boolean connected = false;
 
 
     public Master(String serialNumber, int minimumPullingInterval, int pullingOffset,
@@ -279,9 +279,14 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
     }
 
     synchronized String processConnectResponse(final String status) {
-        // TODO FIX code mocked
-        //return status;
-        return OK;
+        final Integer statusCode = Integer.valueOf(status);
+        if(statusCode == 1) {
+            connected = true;
+            LOGGER.warn("#TAG Master [ " + serialNumber + " ]: status connection: [ connected ].");
+        } else {
+            connected = false;
+        }
+        return status;
     }
 
     synchronized String processStatusResponse(final String status) {
@@ -363,21 +368,22 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
                     //e.printStackTrace();
                 }
 
-                try {
-                    Map<String, String> headers = new HashMap<String, String>();
-                    headers.put("Serial-Number", serialNumber);
-                    headers.put("Content-Type", "application/json");
-                    headers.put("Broadcast", "true");
+                if(connected) {
+                    try {
+                        Map<String, String> headers = new HashMap<String, String>();
+                        headers.put("Serial-Number", serialNumber);
+                        headers.put("Content-Type", "application/json");
+                        headers.put("Broadcast", "true");
 
-                    MessageMapper messageMapper = new MessageMapper();
-                    messageMapper.setMsg(createStatusMessage(getMasterStatus()));
+                        MessageMapper messageMapper = new MessageMapper();
+                        messageMapper.setMsg(createStatusMessage(getMasterStatus()));
 
-                    processResponse(cpush(messageMapper.toJson(), headers));
-                    LOGGER.info("PC CENTRAL-SN [" + serialNumber + "] APP-ID [ broadcast ]: " + messageMapper.getMsg());
-                } catch (Exception e) {
-                    e.printStackTrace();
+                        processResponse(cpush(messageMapper.toJson(), headers));
+                        LOGGER.info("PC CENTRAL-SN [" + serialNumber + "] APP-ID [ broadcast ]: " + messageMapper.getMsg());
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 }
-
             }
         }
 

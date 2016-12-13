@@ -235,13 +235,18 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
     public void processResponse(String response) {
 
         MessageMapper msg = new Gson().fromJson(response, MessageMapper.class);
-        System.out.println("SLV PR:" + response);
         IMessageProcessor messageProcessor = new CloudiaMessageProcessor();
         final CloudiaMessage processedMessage = (CloudiaMessage) messageProcessor.processMessage(msg.getMsg());
 
         switch (processedMessage.getCommand()) {
             case CONNECT:
                 processConnectResponse(processedMessage.getData());
+                if(connected) {
+                    processResponse(createStatusMessage());
+                }
+                break;
+            case STATUS:
+                processStatusResponse(processedMessage.getData());
                 break;
             case LOCK:
                 processLockResponse(processedMessage.getData());
@@ -293,6 +298,10 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
 
 
 
+    synchronized String createStatusMessage() {
+        return createMessage(STATUS, "");
+    }
+
     synchronized String createLockMessage(int partition) {
         return createGenericLockMessage(partition, true);
     }
@@ -327,6 +336,11 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
         } else {
             connected = false;
         }
+        return status;
+    }
+
+
+    synchronized String processStatusResponse(final String status) {
         return status;
     }
 
