@@ -163,7 +163,7 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
 
         long endTimestamp = new Date().getTime();
         synchronized (requestStatisticsList) {
-            RequestStatistics requestStatistics = new RequestStatistics(masterSerialNumber + "_" + applicationID, body == null ? "apull - wbody" : "apull - nobody", startTimestamp, endTimestamp);
+            RequestStatistics requestStatistics = new RequestStatistics(masterSerialNumber + "_" + applicationID, "apush", startTimestamp, endTimestamp);
             requestStatisticsList.add(requestStatistics);
         }
         return response;
@@ -180,12 +180,11 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
         headers.put("Application-ID", applicationID);
         headers.put("Content-Type", "application/json");
 
-
         String response = POST("/apull", headers, null);
 
         long endTimestamp = new Date().getTime();
         synchronized (requestStatisticsList) {
-            RequestStatistics requestStatistics = new RequestStatistics(masterSerialNumber + "_" + applicationID, body == null ? "apull - wbody" : "apull - nobody", startTimestamp, endTimestamp);
+            RequestStatistics requestStatistics = new RequestStatistics(masterSerialNumber + "_" + applicationID, "apull", startTimestamp, endTimestamp);
             requestStatisticsList.add(requestStatistics);
         }
         return response;
@@ -223,8 +222,6 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
 
     }
 
-
-
     class SlavePuller extends Thread implements Runnable {
         private volatile boolean shutdown = false;
         private int pullingOffset;
@@ -249,7 +246,7 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
                 //e.printStackTrace();
             }
             try {
-                String response = apull(null);
+                String response = apull();
                 if(response != null && !response.equals("{}")){
                     Message msg = new Gson().fromJson(response, Message.class);
                     String res = msg.getMessage();
@@ -392,10 +389,10 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
                     String response = null;
                     final int randomLock = new Random().nextInt(2);
                     if(locks[randomLock]) {
-                        response = apull(createUnlockMessage(randomLock));
+                        response = apush(createUnlockMessage(randomLock));
                         LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status locks[" + randomLock + "]: [ CHANGE lock REQUIRED ] to [ UNLOCK ].");
                     } else {
-                        response = apull(createLockMessage(randomLock));
+                        response = apush(createLockMessage(randomLock));
                         LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status locks[" + randomLock + "]: [ CHANGE lock REQUIRED ] to [ LOCK ].");
                     }
                     LOGGER.info("PA POST CENTRAL-SN [" + masterSerialNumber + "] APP-ID [" + applicationID + "]: " + response);
