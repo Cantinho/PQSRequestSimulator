@@ -238,8 +238,7 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
 
     @Override
     public void processRequest(String request) {
-        LOGGER.info("PULL CENTRAL-SN [" + serialNumber + "]: " + request);
-        if(!request.equals("{}")){
+        if(request != null && !request.equals("{}")){
             Map<String, String> headers = new HashMap<String, String>();
             headers.put("Serial-Number", serialNumber);
 
