@@ -16,7 +16,7 @@ public class PQSRequestSimulator {
     /** number of centrals connected to the cloud service */
     private final static int MASTERS_AMOUNT = 1;
     /** number of slaves allowed to speak to each central */
-    private final static int AMOUNT_OF_SLAVE_PER_MASTER = 2;
+    private final static int AMOUNT_OF_SLAVE_PER_MASTER = 0;
 
     private static List<Master> masters;
     private static List<Slave> slaves;
@@ -25,7 +25,8 @@ public class PQSRequestSimulator {
     public static void executeMasters(){
         masters = new ArrayList<Master>();
         for (int i = 0; i < MASTERS_AMOUNT; i++){
-            Master master = new Master("SN-"+i);
+//            Master master = new Master("SN-"+i);
+            Master master = new Master("12345");
             master.init();
             masters.add(master);
             master.start();

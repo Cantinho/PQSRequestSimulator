@@ -312,7 +312,7 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
         boolean lock0Status = locks[0];
         final String lock0StatusHex = String.format("%02X", lock0Status ? (byte) 0x01 : (byte) 0x02);
         boolean lock1Status = locks[1];
-        final String lock1StatusHex = String.format("%02X", lock0Status ? (byte) 0x01 : (byte) 0x02);
+        final String lock1StatusHex = String.format("%02X", lock1Status ? (byte) 0x01 : (byte) 0x02);
         return lock0StatusHex + lock1StatusHex;
     }
 
@@ -389,6 +389,7 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
                         headers.put("Broadcast", "true");
 
                         MessageMapper messageMapper = new MessageMapper();
+                        locks[new Random().nextInt(2)] = new Random().nextBoolean();
                         messageMapper.setMsg(createStatusMessage(getMasterStatus()));
 
                         processResponse(cpush(messageMapper.toJson(), headers));
