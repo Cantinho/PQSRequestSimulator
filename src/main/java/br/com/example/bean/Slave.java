@@ -239,19 +239,27 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
         final CloudiaMessage processedMessage = (CloudiaMessage) messageProcessor.processMessage(msg.getMsg());
 
         switch (processedMessage.getCommand()) {
+            case DISCONNECT:
+                LOGGER.warn("#TAG Slave [ " + applicationID + " ] - processResponse: DISCONNECT");
+                processDisconnectResponse(processedMessage.getData());
+                break;
             case CONNECT:
+                LOGGER.warn("#TAG Slave [ " + applicationID + " ] - processResponse: CONNECT");
                 processConnectResponse(processedMessage.getData());
                 if(connected) {
                     processResponse(createStatusMessage());
                 }
                 break;
             case STATUS:
+                LOGGER.warn("#TAG Slave [ " + applicationID + " ] - processResponse: STATUS");
                 processStatusResponse(processedMessage.getData());
                 break;
             case LOCK:
+                LOGGER.warn("#TAG Slave [ " + applicationID + " ] - processResponse: LOCK");
                 processLockResponse(processedMessage.getData());
                 break;
             case UNLOCK:
+                LOGGER.warn("#TAG Slave [ " + applicationID + " ] - processResponse: UNLOCK");
                 processUnlockResponse(processedMessage.getData());
                 break;
             default:
@@ -339,6 +347,14 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
         return status;
     }
 
+    synchronized String processDisconnectResponse(final String status) {
+        final Integer statusCode = Integer.valueOf(status);
+        if(statusCode == 1) {
+            connected = false;
+            LOGGER.warn("#TAG Slave [ " + applicationID + " ]: status connection: [ connected ].");
+        }
+        return status;
+    }
 
     synchronized String processStatusResponse(final String status) {
         return status;

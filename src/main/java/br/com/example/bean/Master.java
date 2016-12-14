@@ -265,6 +265,10 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
         final CloudiaMessage processedMessage = (CloudiaMessage) messageProcessor.processMessage(msg.getMsg());
 
         switch (processedMessage.getCommand()) {
+            case DISCONNECT:
+                LOGGER.warn("#TAG Master [ " + serialNumber + " ]: DISCONNECT");
+                processDisconnectResponse(processedMessage.getData());
+                break;
             case CONNECT:
                 LOGGER.warn("#TAG Master [ " + serialNumber + " ]: CONNECT");
                 processConnectResponse(processedMessage.getData());
@@ -285,6 +289,15 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
             LOGGER.warn("#TAG Master [ " + serialNumber + " ]: status connection: [ connected ].");
         } else {
             connected = false;
+        }
+        return status;
+    }
+
+    synchronized String processDisconnectResponse(final String status) {
+        final Integer statusCode = Integer.valueOf(status);
+        if(statusCode == 1) {
+            connected = false;
+            LOGGER.warn("#TAG Master [ " + serialNumber + " ]: status connection: [ connected ].");
         }
         return status;
     }
