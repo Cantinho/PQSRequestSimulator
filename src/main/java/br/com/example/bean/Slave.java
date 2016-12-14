@@ -70,7 +70,7 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
     }
 
     private synchronized static byte incrementSequence() {
-        sequence += sequence + (0xFF & 1);
+        sequence += (byte) 0x01;
         return sequence;
     }
 

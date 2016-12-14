@@ -58,7 +58,7 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
     }
 
     private synchronized static byte incrementSequence() {
-        sequence += sequence + (0xFF & 1);
+        sequence += (byte)(0x01);
         return sequence;
     }
 
@@ -327,7 +327,7 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
     private synchronized String createMessage(final String command, final String data) {
         final String currentSequence = String.format("%02X", (byte) (incrementSequence() & 0xFF));
         //byte command
-        final String dummyChecksum = String.format("%02X", (byte) (incrementSequence() & 0xFF));
+        final String dummyChecksum = String.format("%02X", (byte)(0xFF));
 
         IMessageProcessor messageProcessor = new CloudiaMessageProcessor();
         CloudiaMessage cm = new CloudiaMessage("7B", currentSequence, command, data, dummyChecksum);
