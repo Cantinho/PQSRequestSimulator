@@ -323,6 +323,10 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
 
     }
 
+    synchronized String createDisconnectMessage() {
+        return createMessage(DISCONNECT, "");
+    }
+
     synchronized String createMessage(final String command, final String data) {
         final String currentSequence = String.format("%02d", Byte.parseByte( (incrementSequence() & 0xFF) + "", 16));
         //byte command
@@ -447,6 +451,23 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
         try {
             MessageMapper messageMapper = new MessageMapper();
             messageMapper.setMsg(createConnectMessage());
+            response = POST("/aconn", headers, messageMapper.toJson());
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
+        return response;
+    }
+
+    private String disconnectFromCloudService() {
+        Map<String, String> headers = new HashMap<String, String>();
+        headers.put("Serial-Number", masterSerialNumber);
+        headers.put("Application-ID", applicationID);
+        headers.put("Content-Type", "application/json");
+        String response = "";
+        try {
+            MessageMapper messageMapper = new MessageMapper();
+            messageMapper.setMsg(createDisconnectMessage());
             response = POST("/aconn", headers, messageMapper.toJson());
         }catch (Exception e){
             e.printStackTrace();
