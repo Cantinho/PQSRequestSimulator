@@ -310,9 +310,9 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
 
     private synchronized String getMasterStatus() {
         boolean lock0Status = locks[0];
-        final String lock0StatusHex = Byte.toString(lock0Status ? (byte) 0x01 : (byte) 0x02);
+        final String lock0StatusHex = String.format("%02X", lock0Status ? (byte) 0x01 : (byte) 0x02);
         boolean lock1Status = locks[1];
-        final String lock1StatusHex = Byte.toString(lock1Status ? (byte) 0x01 : (byte) 0x02);
+        final String lock1StatusHex = String.format("%02X", lock0Status ? (byte) 0x01 : (byte) 0x02);
         return lock0StatusHex + lock1StatusHex;
     }
 
@@ -325,9 +325,9 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
     }
 
     private synchronized String createMessage(final String command, final String data) {
-        final String currentSequence = String.format("%02d",(incrementSequence() & 0xFF));
+        final String currentSequence = String.format("%02X", (byte) (incrementSequence() & 0xFF));
         //byte command
-        final String dummyChecksum = String.format("%02d", (byte) 0);
+        final String dummyChecksum = String.format("%02X", (byte) (incrementSequence() & 0xFF));
 
         IMessageProcessor messageProcessor = new CloudiaMessageProcessor();
         CloudiaMessage cm = new CloudiaMessage("7B", currentSequence, command, data, dummyChecksum);

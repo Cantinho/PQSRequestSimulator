@@ -328,16 +328,16 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
     }
 
     synchronized String createMessage(final String command, final String data) {
-        final String currentSequence = String.format("%02d", Byte.parseByte( (incrementSequence() & 0xFF) + "", 16));
+        final String currentSequence = String.format("%02X", (byte) (incrementSequence() & 0xFF));
         //byte command
-        final String dummyChecksum = String.format("%02d", (byte) 0);
+        final String dummyChecksum = String.format("%02X", (byte) 0x00);
         CloudiaMessage cloudiaMessage = new CloudiaMessage("7B", currentSequence, command, data, dummyChecksum);
         cloudiaMessage.recalculateChecksum();
         return cloudiaMessage.getMessage();
     }
 
     synchronized String createGenericLockMessage(int partition, boolean lock) {
-        return createMessage((lock ? LOCK : UNLOCK), String.format("%02d", Byte.parseByte( (partition & 0xFF) + "", 16)));
+        return createMessage((lock ? LOCK : UNLOCK), String.format("%02X", (byte) (partition & 0xFF)));
     }
 
     synchronized String processConnectResponse(final String status) {
