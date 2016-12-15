@@ -7,6 +7,7 @@ import br.com.example.statistics.RequestStatistics;
 import br.com.processor.*;
 import br.com.processor.mapper.MessageMapper;
 import com.google.gson.Gson;
+import com.sun.org.apache.regexp.internal.RE;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -203,7 +204,12 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
                 //e.printStackTrace();
             }
 
-            processRequest(cpull());
+            System.out.println("Master ["+serialNumber+"] - Puller - LIVE");
+            try {
+                processRequest(cpull());
+            }catch (Exception e) {
+                e.printStackTrace();
+            }
         }
 
         public void shutdown() {
@@ -214,24 +220,27 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
 
     @Override
     public void processRequest(String request) {
+        System.out.println("PROCESS REQUEST:" + request);
         if(request != null && !request.equals("{}")){
 
-            Message message = (new Gson()).fromJson(request, Message.class);
+            MessageMapper messageMapper = (new Gson()).fromJson(request, MessageMapper.class);
 
             Map<String, String> headers = new HashMap<String, String>();
             headers.put("Serial-Number", serialNumber);
-            headers.put("Application-ID", message.getApplicationID());
+//            headers.put("Application-ID", message.getApplicationID());
             headers.put("Content-Type", "application/json");
+            headers.put("Broadcast", "true");
 
-            MessageMapper messageMapper = new MessageMapper();
+            if(messageMapper.getMsg() == null || messageMapper.getMsg().trim().isEmpty()){
+                return;
+            }
 
             IMessageProcessor messageProcessor = new CloudiaMessageProcessor();
-            final CloudiaMessage processedMessage = (CloudiaMessage) messageProcessor.processMessage(message.getMessage());
+            final CloudiaMessage processedMessage = (CloudiaMessage) messageProcessor.processMessage(messageMapper.getMsg());
 
             switch (processedMessage.getCommand()) {
                 case LOCK: {
                     LOGGER.warn("#TAG Master [ " + serialNumber + " ]: change lock status required to LOCK");
-                    headers.put("Broadcast", "true");
                     processLock(processedMessage.getData(), true);
                     messageMapper.setMsg(createStatusMessage(getMasterStatus()));
                     processResponse(cpush(messageMapper.toJson(), headers));
@@ -239,7 +248,6 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
                 }
                 case UNLOCK: {
                     LOGGER.warn("#TAG Master [ " + serialNumber + " ]: change lock status required to UNLOCK");
-                    headers.put("Broadcast", "true");
                     processLock(processedMessage.getData(), false);
                     messageMapper.setMsg(createStatusMessage(getMasterStatus()));
                     processResponse(cpush(messageMapper.toJson(), headers));
@@ -250,12 +258,13 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
                     break;
             }
 
-            LOGGER.info("PC CENTRAL-SN [" + serialNumber + "] APP-ID [" + message.getApplicationID() + "]: " + request);
         }
     }
 
     @Override
     public void processResponse(String response) {
+
+        System.out.println("PROCESS RESPONSE:" + response);
 
         System.out.println("Master - processResponse - response:" + response);
         MessageMapper msg = new Gson().fromJson(response, MessageMapper.class);
