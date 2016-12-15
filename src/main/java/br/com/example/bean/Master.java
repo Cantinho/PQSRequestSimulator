@@ -7,7 +7,6 @@ import br.com.example.statistics.RequestStatistics;
 import br.com.processor.*;
 import br.com.processor.mapper.MessageMapper;
 import com.google.gson.Gson;
-import com.sun.org.apache.regexp.internal.RE;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -161,8 +160,8 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
             RequestStatistics requestStatistics = new RequestStatistics(serialNumber, "cpush", startTimestamp, endTimestamp);
             requestStatisticsList.add(requestStatistics);
         }
-        System.out.println("Master - cpush - body:" + body);
-        System.out.println("Master - cpush - response:[" + response +"]");
+        LOGGER.warn("Master - cpush - body:" + body);
+        LOGGER.warn("Master - cpush - response:[" + response +"]");
         return response;
     }
 
@@ -220,10 +219,11 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
 
     @Override
     public void processRequest(String request) {
-        System.out.println("PROCESS REQUEST:" + request);
+        LOGGER.warn("PROCESS REQUEST:" + request);
         if(request != null && !request.equals("{}")){
 
             MessageMapper messageMapper = (new Gson()).fromJson(request, MessageMapper.class);
+            if(messageMapper != null && messageMapper.getMsg() != null && !messageMapper.getMsg().trim().equals("")) System.out.println("PROCESS REQUEST:" + messageMapper.getMsg());
 
             Map<String, String> headers = new HashMap<String, String>();
             headers.put("Serial-Number", serialNumber);
@@ -264,12 +264,14 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
     @Override
     public void processResponse(String response) {
 
-        System.out.println("PROCESS RESPONSE:" + response);
+        LOGGER.warn("PROCESS RESPONSE:" + response);
 
-        System.out.println("Master - processResponse - response:" + response);
+        LOGGER.warn("Master - processResponse - response:" + response);
         MessageMapper msg = new Gson().fromJson(response, MessageMapper.class);
-        System.out.println("Master - processResponse - msg:" + msg);
-        System.out.println("Master - processResponse - msg.getMsg():" + (msg == null ? "null" : msg.getMsg()));
+        if(msg != null && msg.getMsg() != null && !msg.getMsg().trim().equals("")) System.out.println("PROCESS RESPONSE:" + msg.getMsg());
+
+        LOGGER.warn("Master - processResponse - msg:" + msg);
+        LOGGER.warn("Master - processResponse - msg.getMsg():" + (msg == null ? "null" : msg.getMsg()));
         IMessageProcessor messageProcessor = new CloudiaMessageProcessor();
         final CloudiaMessage processedMessage = (CloudiaMessage) messageProcessor.processMessage(msg.getMsg());
 
@@ -380,7 +382,7 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
             }
 
             if(!sleepMode) {
-                System.out.println("Master [" + serialNumber + "] - Pusher - LIVE");
+                //System.out.println("Master [" + serialNumber + "] - Pusher - LIVE");
                 Random rand = new Random();
                 int randomInterval = rand.nextInt(pushingOffset + 1);
 
@@ -390,7 +392,7 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
                     //e.printStackTrace();
                 }
 
-                if(connected) {
+                /*if(connected) {
                     try {
                         Map<String, String> headers = new HashMap<String, String>();
                         headers.put("Serial-Number", serialNumber);
@@ -406,7 +408,7 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
-                }
+                }*/
             }
         }
 

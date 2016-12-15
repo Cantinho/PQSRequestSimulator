@@ -24,13 +24,6 @@
             <scope>compile</scope>
         </dependency>
 
-        <dependency>
-            <groupId>br.com.processor</groupId>
-            <artifactId>MessageProcessor</artifactId>
-            <version>1.0</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/src/main/resources/MessageProcessor-1.0.jar</systemPath>
-        </dependency>
     </dependencies>
 
     <build>
