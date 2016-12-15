@@ -241,9 +241,11 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
                 //e.printStackTrace();
             }
 
+
+            System.out.println("Master ["+serialNumber+"] - Puller - LIVE");
             try {
                 processRequest(cpull());
-            } catch (Exception e) {
+            }catch (Exception e) {
                 e.printStackTrace();
             }
         }
@@ -260,6 +262,7 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
 
             MessageMapper messageMapper = (new Gson()).fromJson(request.getBody().toString(), MessageMapper.class);
             String applicationID = "";
+
             Map<String, String> headers = new HashMap<String, String>();
             Headers requestHeaders = request.getHeaders();
             System.out.println(headers);
@@ -273,6 +276,12 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
             }
 
             headers.put("Content-Type", "application/json");
+            headers.put("Content-Type", "application/json");
+            headers.put("Broadcast", "true");
+
+            if(messageMapper.getMsg() == null || messageMapper.getMsg().trim().isEmpty()){
+                return;
+            }
 
             IMessageProcessor messageProcessor = new CloudiaMessageProcessor();
             final CloudiaMessage processedMessage = (CloudiaMessage) messageProcessor.processMessage(messageMapper.getMsg());
@@ -280,7 +289,6 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
             switch (processedMessage.getCommand()) {
                 case LOCK: {
                     LOGGER.warn("#TAG Master [ " + serialNumber + " ]: change lock status required to LOCK");
-                    headers.put("Broadcast", "true");
                     processLock(processedMessage.getData(), true);
                     messageMapper.setMsg(createStatusMessage(getMasterStatus()));
                     processResponse(cpush(messageMapper.toJson(), headers));
@@ -288,7 +296,6 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
                 }
                 case UNLOCK: {
                     LOGGER.warn("#TAG Master [ " + serialNumber + " ]: change lock status required to UNLOCK");
-                    headers.put("Broadcast", "true");
                     processLock(processedMessage.getData(), false);
                     messageMapper.setMsg(createStatusMessage(getMasterStatus()));
                     processResponse(cpush(messageMapper.toJson(), headers));
@@ -311,6 +318,10 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
     @Override
     public void processResponse(HttpResponse<JsonNode> response) {
 
+        System.out.println("PROCESS RESPONSE:" + response);
+        if(response == null || response.getBody() == null || response.getBody().toString().trim().isEmpty()) {
+            return;
+        }
         System.out.println("Master - processResponse - response:" + response);
         MessageMapper msg = new Gson().fromJson(response.getBody().toString(), MessageMapper.class);
         System.out.println("Master - processResponse - msg:" + msg);

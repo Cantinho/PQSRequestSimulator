@@ -26,7 +26,11 @@ public class PQSRequestSimulator {
         masters = new ArrayList<Master>();
         for (int i = 0; i < MASTERS_AMOUNT; i++){
 //            Master master = new Master("SN-"+i);
+<<<<<<< HEAD
             Master master = new Master("600");
+=======
+            Master master = new Master("300");
+>>>>>>> 1d79ecdf8fdb5daf14271e9e132990454ff30d27
             master.init();
             masters.add(master);
             master.start();
