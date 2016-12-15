@@ -73,8 +73,11 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
 
     public void init() {
 
-        processResponse(connectToCloudService());
-
+        try {
+            processResponse(connectToCloudService());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         runnablePullersFutures = new ArrayList<Future>();
         runnablePushersFutures = new ArrayList<Future>();
     }
@@ -160,7 +163,7 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
      * executes GET /cpull for centrals
      * @return
      */
-    private synchronized HttpResponse<JsonNode> cpull(){
+    private HttpResponse<JsonNode> cpull(){
         long startTimestamp = new Date().getTime();
         Map<String, String> headers = new HashMap<String, String>();
         headers.put("Serial-Number", serialNumber);
@@ -174,7 +177,7 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
         return response;
     }
 
-    private synchronized HttpResponse<JsonNode> cpush(String body, Map<String, String> headers){
+    private HttpResponse<JsonNode> cpush(String body, Map<String, String> headers){
         long startTimestamp = new Date().getTime();
 
         HttpResponse<JsonNode> response = post("/cpush", headers, body);
@@ -183,8 +186,8 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
             RequestStatistics requestStatistics = new RequestStatistics(serialNumber, "cpush", startTimestamp, endTimestamp);
             requestStatisticsList.add(requestStatistics);
         }
-        System.out.println("Master - cpush - body:" + body);
-        System.out.println("Master - cpush - response:[" + response +"]");
+        LOGGER.warn("Master - cpush - body:" + body);
+        LOGGER.warn("Master - cpush - response:[" + response +"]");
         return response;
     }
 
@@ -267,7 +270,7 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
 
             Map<String, String> headers = new HashMap<String, String>();
             Headers requestHeaders = request.getHeaders();
-            System.out.println(headers);
+            //System.out.println(headers);
             headers.put("Serial-Number", serialNumber);
             List<String> applicationIdHeader = requestHeaders.get("Application-ID");
             if(applicationIdHeader != null && !applicationIdHeader.isEmpty()) {
@@ -313,14 +316,13 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
     }
 
     @Override
-    public void processRequest(String response) {
-
+    public void processRequest(String response) throws Exception {
+        throw new Exception("Not yet implemented");
     }
 
     @Override
     public void processResponse(HttpResponse<JsonNode> response) {
 
-        System.out.println("PROCESS RESPONSE:" + response);
         if(response == null || response.getBody() == null || response.getBody().toString().trim().isEmpty()) {
             return;
         }
@@ -351,8 +353,8 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
     }
 
     @Override
-    public void processResponse(String response) {
-
+    public void processResponse(String response) throws Exception {
+        throw new Exception("Not yet implemented");
     }
 
     synchronized String processConnectResponse(final String status) {
@@ -479,15 +481,15 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
         }
     }
 
-    private String connectToCloudService(){
+    private HttpResponse<JsonNode> connectToCloudService(){
         Map<String, String> headers = new HashMap<String, String>();
         headers.put("Serial-Number", serialNumber);
         headers.put("Content-Type", "application/json");
-        String response = "";
+        HttpResponse<JsonNode> response = null;
         try {
             MessageMapper messageMapper = new MessageMapper();
             messageMapper.setMsg(createConnectMessage(""));
-            response = POST("/cconn", headers, messageMapper.toJson());
+            response = post("/cconn", headers, messageMapper.toJson());
         }catch (Exception e){
             e.printStackTrace();
         }

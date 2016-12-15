@@ -8,9 +8,9 @@ import com.mashape.unirest.http.JsonNode;
  */
 public interface ComunicationProtocol {
 
-    void processRequest(final String request);
+    void processRequest(final String request) throws Exception;
 
-    void processResponse(final String response);
+    void processResponse(final String response) throws Exception;
 
     void processRequest(HttpResponse<JsonNode> request);
 

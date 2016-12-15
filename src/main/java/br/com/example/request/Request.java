@@ -86,15 +86,6 @@ public class Request {
         return null;
     }
 
-    public static HttpResponse<JsonNode> get(final String endpoint, final Map<String, String> headers) {
-        try {
-            return Unirest.get(URL + endpoint).headers(headers).asJson();
-        } catch (UnirestException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
     /**
      * Method POST can be utilized either for /pa or /pc endpoints.
      * @param endpoint: /pa or /pc
@@ -149,5 +140,14 @@ public class Request {
             }
         }
         return response.toString();
+    }
+
+    public static HttpResponse<JsonNode> get(final String endpoint, final Map<String, String> headers) {
+        try {
+            return Unirest.get(URL + endpoint).headers(headers).asJson();
+        } catch (UnirestException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }
