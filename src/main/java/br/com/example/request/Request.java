@@ -1,5 +1,9 @@
 package br.com.example.request;
 
+import com.mashape.unirest.http.HttpResponse;
+import com.mashape.unirest.http.JsonNode;
+import com.mashape.unirest.http.Unirest;
+import com.mashape.unirest.http.exceptions.UnirestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,7 +25,9 @@ public class Request {
 
 
     /** url for connecting to the cloud service */
-    private final static String URL = "http://ec2-52-67-203-68.sa-east-1.compute.amazonaws.com:5050";
+    //private final static String URL = "http://localhost:8080";
+    private final static String URL = "http://10.100.100.100:5050";
+    //private final static String URL = "http://ec2-52-67-203-68.sa-east-1.compute.amazonaws.com:5050";
 
     private Request(){}
 
@@ -69,6 +75,24 @@ public class Request {
             }
         }
         return response.toString();
+    }
+
+    public static HttpResponse<JsonNode> post(final String endpoint, final Map<String, String> headers, final String body) {
+        try {
+            return Unirest.post(URL + endpoint).headers(headers).body(body).asJson();
+        } catch (UnirestException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public static HttpResponse<JsonNode> get(final String endpoint, final Map<String, String> headers) {
+        try {
+            return Unirest.get(URL + endpoint).headers(headers).asJson();
+        } catch (UnirestException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     /**
