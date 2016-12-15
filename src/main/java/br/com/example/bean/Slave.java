@@ -9,6 +9,8 @@ import br.com.processor.IMessageProcessor;
 import br.com.processor.CloudiaMessageProcessor;
 import br.com.processor.mapper.MessageMapper;
 import com.google.gson.Gson;
+import com.mashape.unirest.http.HttpResponse;
+import com.mashape.unirest.http.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -212,8 +214,15 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
     @Override
     public void processRequest(String request) {
 
-        if(request != null && !request.trim().isEmpty() && !request.equals("{}")){
-            MessageMapper msg = new Gson().fromJson(request, MessageMapper.class);
+    }
+
+    @Override
+    public void processRequest(HttpResponse<JsonNode> request) {
+        if(request != null && request.getBody() != null &&
+                !request.getBody().toString().trim().isEmpty() &&
+                !request.getBody().toString().trim().equals("{}")){
+
+            MessageMapper msg = new Gson().fromJson(request.getBody().toString(), MessageMapper.class);
             System.out.println("SLV - processRequest - msg:" + msg.getMsg());
             if(msg.getMsg() != null && !msg.getMsg().trim().isEmpty()) {
                 IMessageProcessor messageProcessor = new CloudiaMessageProcessor();
@@ -234,7 +243,11 @@ public class Slave implements IRequestStatisticallyProfilable, ComunicationProto
     @Override
     public void processResponse(String response) {
 
-        MessageMapper msg = new Gson().fromJson(response, MessageMapper.class);
+    }
+
+    @Override
+    public void processResponse(HttpResponse<JsonNode> response) {
+        MessageMapper msg = new Gson().fromJson(response.getBody().toString(), MessageMapper.class);
         IMessageProcessor messageProcessor = new CloudiaMessageProcessor();
         final CloudiaMessage processedMessage = (CloudiaMessage) messageProcessor.processMessage(msg.getMsg());
 

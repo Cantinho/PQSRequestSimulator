@@ -7,6 +7,9 @@ import br.com.example.statistics.RequestStatistics;
 import br.com.processor.*;
 import br.com.processor.mapper.MessageMapper;
 import com.google.gson.Gson;
+import com.mashape.unirest.http.Headers;
+import com.mashape.unirest.http.HttpResponse;
+import com.mashape.unirest.http.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,6 +18,8 @@ import java.util.concurrent.*;
 
 import static br.com.example.request.Request.GET;
 import static br.com.example.request.Request.POST;
+import static br.com.example.request.Request.get;
+import static br.com.example.request.Request.post;
 import static br.com.processor.CloudiaMessage.*;
 
 /**
@@ -137,7 +142,7 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
      * executes GET /cpull for centrals
      * @return
      */
-    private String cpull(){
+    private synchronized String old_cpull(){
         long startTimestamp = new Date().getTime();
         Map<String, String> headers = new HashMap<String, String>();
         headers.put("Serial-Number", serialNumber);
@@ -151,7 +156,39 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
         return response;
     }
 
-    private String cpush(String body, Map<String, String> headers){
+    /**
+     * executes GET /cpull for centrals
+     * @return
+     */
+    private synchronized HttpResponse<JsonNode> cpull(){
+        long startTimestamp = new Date().getTime();
+        Map<String, String> headers = new HashMap<String, String>();
+        headers.put("Serial-Number", serialNumber);
+
+        HttpResponse<JsonNode> response = get("/cpull", headers);
+        long endTimestamp = new Date().getTime();
+        synchronized (requestStatisticsList) {
+            RequestStatistics requestStatistics = new RequestStatistics(serialNumber, "cpull", startTimestamp, endTimestamp);
+            requestStatisticsList.add(requestStatistics);
+        }
+        return response;
+    }
+
+    private synchronized HttpResponse<JsonNode> cpush(String body, Map<String, String> headers){
+        long startTimestamp = new Date().getTime();
+
+        HttpResponse<JsonNode> response = post("/cpush", headers, body);
+        long endTimestamp = new Date().getTime();
+        synchronized (requestStatisticsList) {
+            RequestStatistics requestStatistics = new RequestStatistics(serialNumber, "cpush", startTimestamp, endTimestamp);
+            requestStatisticsList.add(requestStatistics);
+        }
+        System.out.println("Master - cpush - body:" + body);
+        System.out.println("Master - cpush - response:[" + response +"]");
+        return response;
+    }
+
+    private synchronized String old_cpush(String body, Map<String, String> headers){
         long startTimestamp = new Date().getTime();
 
         String response = POST("/cpush", headers, body);
@@ -194,6 +231,7 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
                 }
             }
 
+            System.out.println("Master [" + serialNumber + "] - Puller - LIVE");
             Random rand = new Random();
             int randomInterval = rand.nextInt(pullingOffset + 1);
 
@@ -203,7 +241,11 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
                 //e.printStackTrace();
             }
 
-            processRequest(cpull());
+            try {
+                processRequest(cpull());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
 
         public void shutdown() {
@@ -213,20 +255,27 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
     }
 
     @Override
-    public void processRequest(String request) {
+    public void processRequest(HttpResponse<JsonNode> request) {
         if(request != null && !request.equals("{}")){
 
-            Message message = (new Gson()).fromJson(request, Message.class);
-
+            MessageMapper messageMapper = (new Gson()).fromJson(request.getBody().toString(), MessageMapper.class);
+            String applicationID = "";
             Map<String, String> headers = new HashMap<String, String>();
+            Headers requestHeaders = request.getHeaders();
+            System.out.println(headers);
             headers.put("Serial-Number", serialNumber);
-            headers.put("Application-ID", message.getApplicationID());
+            List<String> applicationIdHeader = requestHeaders.get("Application-ID");
+            if(applicationIdHeader != null && !applicationIdHeader.isEmpty()) {
+                applicationID = applicationIdHeader.get(0);
+                headers.put("Application-ID",applicationIdHeader.get(0));
+            } else {
+                return;
+            }
+
             headers.put("Content-Type", "application/json");
 
-            MessageMapper messageMapper = new MessageMapper();
-
             IMessageProcessor messageProcessor = new CloudiaMessageProcessor();
-            final CloudiaMessage processedMessage = (CloudiaMessage) messageProcessor.processMessage(message.getMessage());
+            final CloudiaMessage processedMessage = (CloudiaMessage) messageProcessor.processMessage(messageMapper.getMsg());
 
             switch (processedMessage.getCommand()) {
                 case LOCK: {
@@ -250,15 +299,20 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
                     break;
             }
 
-            LOGGER.info("PC CENTRAL-SN [" + serialNumber + "] APP-ID [" + message.getApplicationID() + "]: " + request);
+            LOGGER.info("PC CENTRAL-SN [" + serialNumber + "] APP-ID [" + applicationID + "]: " + request);
         }
     }
 
     @Override
-    public void processResponse(String response) {
+    public void processRequest(String response) {
+
+    }
+
+    @Override
+    public void processResponse(HttpResponse<JsonNode> response) {
 
         System.out.println("Master - processResponse - response:" + response);
-        MessageMapper msg = new Gson().fromJson(response, MessageMapper.class);
+        MessageMapper msg = new Gson().fromJson(response.getBody().toString(), MessageMapper.class);
         System.out.println("Master - processResponse - msg:" + msg);
         System.out.println("Master - processResponse - msg.getMsg():" + (msg == null ? "null" : msg.getMsg()));
         IMessageProcessor messageProcessor = new CloudiaMessageProcessor();
@@ -280,6 +334,11 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
             default:
                 LOGGER.warn("#TAG Master COMMAND + [ " + processedMessage.getCommand() + " ] NOT FOUND.");
         }
+    }
+
+    @Override
+    public void processResponse(String response) {
+
     }
 
     synchronized String processConnectResponse(final String status) {
