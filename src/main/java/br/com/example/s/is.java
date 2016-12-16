@@ -1,9 +1,9 @@
-package br.com.example.statistics;
+package br.com.example.s;
 
 /**
  * Created by samirtf on 28/11/16.
  */
-public interface IStatistics {
+public interface is {
 
     long getSequence();
 

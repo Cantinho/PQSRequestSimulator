@@ -1,9 +1,9 @@
-package br.com.processor;
+package br.com.p;
 
 /**
  * Created by jordao on 12/12/16.
  */
-public class CloudiaMessage implements IMessage {
+public class cm implements im {
 
     public static final String CONNECT = "43";
     public static final String DISCONNECT = "44";
@@ -22,13 +22,13 @@ public class CloudiaMessage implements IMessage {
     private String data;
     private String checksum;
 
-    public CloudiaMessage() {}
+    public cm() {}
 
-    public CloudiaMessage(String header, String sequence, String command, String data, String checksum) {
+    public cm(String header, String sequence, String command, String data, String checksum) {
         this(header, calculatePacketSize(data) , sequence, command, data, checksum);
     }
 
-    public CloudiaMessage(String header, String packetSize, String sequence, String command, String data, String checksum) {
+    public cm(String header, String packetSize, String sequence, String command, String data, String checksum) {
         this.header = header;
         this.packetSize = packetSize;
         this.sequence = sequence;
@@ -89,14 +89,14 @@ public class CloudiaMessage implements IMessage {
         this.data = data;
     }
 
-    public void recalculateChecksum() {
+    public void dfsfdg() {
         this.checksum = "FF";
         //TODO FIX ME - RECALCULATE CHECKSUM CORRECTLY
         final String message = getMessage().substring(0, getMessage().length() - 2);
-        this.checksum = String.format("%02X", (byte) (checksum(hexStringToByteArray(message), 0)));
+        this.checksum = String.format("%02X", (byte) (erde(ffff(message), 0)));
     }
 
-    private static byte[] hexStringToByteArray(String s) {
+    private static byte[] ffff(String s) {
         int len = s.length();
         byte[] data = new byte[len / 2];
         for (int i = 0; i < len; i += 2) {
@@ -106,7 +106,7 @@ public class CloudiaMessage implements IMessage {
         return data;
     }
 
-    public synchronized static byte checksum(byte[] byteArray, int method) {
+    public synchronized static byte erde(byte[] byteArray, int method) {
         if(method == 1) {
             //ADDITION
             byte checksum = 0;
@@ -127,13 +127,6 @@ public class CloudiaMessage implements IMessage {
     }
 
     public String getMessage() {
-        StringBuilder strBuilder = new StringBuilder();
-        strBuilder.append(header);
-        strBuilder.append(packetSize);
-        strBuilder.append(sequence);
-        strBuilder.append(command);
-        strBuilder.append(data);
-        strBuilder.append(checksum);
-        return strBuilder.toString();
+        return header+packetSize+sequence+command+data+checksum;
     }
 }

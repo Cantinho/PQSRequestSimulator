@@ -1,9 +1,9 @@
-package br.com.processor;
+package br.com.p;
 
 /**
  * Created by jordao on 12/12/16.
  */
-public interface IMessage {
+public interface im {
 
     String getMessage();
 

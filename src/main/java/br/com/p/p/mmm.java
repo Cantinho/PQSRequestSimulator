@@ -1,4 +1,4 @@
-package br.com.processor.mapper;
+package br.com.p.p;
 
 import com.google.gson.Gson;
 
@@ -7,15 +7,15 @@ import java.util.List;
 /**
  * Created by jordaoesa on 12/12/16.
  */
-public class MessageMapper {
+public class mmm {
 
     private int tp;
     private String msg;
     private List<String> msgs;
 
-    public MessageMapper() {}
+    public mmm() {}
 
-    public MessageMapper(int tp, String msg, List<String> msgs) {
+    public mmm(int tp, String msg, List<String> msgs) {
         this.tp = tp;
         this.msg = msg;
         this.msgs = msgs;

@@ -1,9 +1,9 @@
-package br.com.processor;
+package br.com.p;
 
 /**
  * Created by jordao on 12/12/16.
  */
-public class SimpleMessage implements IMessage {
+public class sm implements im {
 
     public static final String HELLO_WORLD_MESSAGE = "HELLO WORLD";
     public static final String STATUS_MESSAGE = "STATUS";
@@ -12,9 +12,9 @@ public class SimpleMessage implements IMessage {
 
     private String message;
 
-    public SimpleMessage() {}
+    public sm() {}
 
-    public SimpleMessage(String message) {
+    public sm(String message) {
         this.message = message;
     }
 

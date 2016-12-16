@@ -1,4 +1,4 @@
-package br.com.processor;
+package br.com.p;
 
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.JsonNode;
@@ -6,7 +6,7 @@ import com.mashape.unirest.http.JsonNode;
 /**
  * Created by jordao on 12/12/16.
  */
-public interface ComunicationProtocol {
+public interface cp {
 
     void processRequest(final String request) throws Exception;
 
