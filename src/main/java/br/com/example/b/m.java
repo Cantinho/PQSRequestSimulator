@@ -11,6 +11,9 @@ import com.mashape.unirest.http.Headers;
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.JsonNode;
 
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -165,7 +168,16 @@ public class m implements irs, cp {
         Map<String, String> headers = new HashMap<String, String>();
         headers.put("Serial-Number", l);
 
-        HttpResponse<JsonNode> response = get("/cpull", headers);
+        HttpResponse<JsonNode> response = null;
+        try {
+            response = get("/cpull", headers);
+        } catch (KeyStoreException e) {
+            e.printStackTrace();
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        } catch (KeyManagementException e) {
+            e.printStackTrace();
+        }
         long endTimestamp = new Date().getTime();
         synchronized (ooo) {
             rss rss = new rss(l, "cpull", startTimestamp, endTimestamp);
@@ -177,7 +189,16 @@ public class m implements irs, cp {
     private HttpResponse<JsonNode> cpush(String body, Map<String, String> headers){
         long startTimestamp = new Date().getTime();
 
-        HttpResponse<JsonNode> response = post("/cpush", headers, body);
+        HttpResponse<JsonNode> response = null;
+        try {
+            response = post("/cpush", headers, body);
+        } catch (KeyStoreException e) {
+            e.printStackTrace();
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        } catch (KeyManagementException e) {
+            e.printStackTrace();
+        }
         long endTimestamp = new Date().getTime();
         synchronized (ooo) {
             rss rss = new rss(l, "cpush", startTimestamp, endTimestamp);

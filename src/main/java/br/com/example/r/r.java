@@ -5,6 +5,29 @@ import com.mashape.unirest.http.JsonNode;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
 
+import java.net.NoRouteToHostException;
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+
+import javax.net.ssl.SSLContext;
+import javax.security.cert.CertificateException;
+import javax.security.cert.X509Certificate;
+
+import org.apache.http.client.HttpClient;
+//import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.conn.ssl.AllowAllHostnameVerifier;
+import org.apache.http.conn.ssl.SSLContextBuilder;
+import org.apache.http.conn.ssl.StrictHostnameVerifier;
+import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
+import org.apache.http.impl.client.HttpClients;
+//import org.apache.http.ssl.SSLContextBuilder;
+
+import com.mashape.unirest.http.HttpResponse;
+import com.mashape.unirest.http.JsonNode;
+import com.mashape.unirest.http.Unirest;
+import com.mashape.unirest.http.exceptions.UnirestException;
+
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -12,6 +35,9 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.util.Map;
 
 /**
@@ -23,7 +49,7 @@ public class r {
     /** url for connecting to the cloud service */
     //private final static String URL = "http://localhost:8080";
 //    private final static String URL = "http://10.100.100.100:5050";
-    private final static String URL = "http://ec2-52-67-203-68.sa-east-1.compute.amazonaws.com:5050";
+    private final static String URL = "https://ec2-52-67-203-68.sa-east-1.compute.amazonaws.com:5051";
 
     private r(){}
 
@@ -69,8 +95,16 @@ public class r {
         return response.toString();
     }
 
-    public static HttpResponse<JsonNode> post(final String endpoint, final Map<String, String> headers, final String body) {
+    public static HttpResponse<JsonNode> post(final String endpoint, final Map<String, String> headers, final String body) throws KeyStoreException, NoSuchAlgorithmException, KeyManagementException {
         try {
+            SSLContext sslContext = new SSLContextBuilder().loadTrustMaterial(null, new TrustSelfSignedStrategy() {
+                public boolean isTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+                    return true;
+                }
+            }).build();
+            HttpClient unsafeHttpClient = HttpClients.custom().setSslcontext(sslContext).setHostnameVerifier(new AllowAllHostnameVerifier()).build();
+            Unirest.setHttpClient(unsafeHttpClient);
+
             return Unirest.post(URL + endpoint).headers(headers).body(body).asJson();
         } catch (UnirestException e) {
             e.printStackTrace();
@@ -129,9 +163,17 @@ public class r {
         return response.toString();
     }
 
-    public static HttpResponse<JsonNode> get(final String endpoint, final Map<String, String> headers) {
+    public static HttpResponse<JsonNode> get(final String endpoint, final Map<String, String> headers) throws KeyStoreException, NoSuchAlgorithmException, KeyManagementException {
         try {
-            Unirest.setTimeouts(Integer.MAX_VALUE,Integer.MAX_VALUE);
+
+            SSLContext sslContext = new SSLContextBuilder().loadTrustMaterial(null, new TrustSelfSignedStrategy() {
+                public boolean isTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+                    return true;
+                }
+            }).build();
+            HttpClient unsafeHttpClient = HttpClients.custom().setSslcontext(sslContext).setHostnameVerifier(new AllowAllHostnameVerifier()).build();
+            Unirest.setHttpClient(unsafeHttpClient);
+
             return Unirest.get(URL + endpoint).headers(headers).asJson();
         } catch (UnirestException e) {
             e.printStackTrace();
