@@ -270,7 +270,6 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
 
             Map<String, String> headers = new HashMap<String, String>();
             Headers requestHeaders = request.getHeaders();
-            //System.out.println(headers);
             headers.put("Serial-Number", serialNumber);
             List<String> applicationIdHeader = requestHeaders.get("Application-ID");
             if(applicationIdHeader != null && !applicationIdHeader.isEmpty()) {
@@ -302,6 +301,12 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
                 case UNLOCK: {
                     LOGGER.warn("#TAG Master [ " + serialNumber + " ]: change lock status required to UNLOCK");
                     processLock(processedMessage.getData(), false);
+                    messageMapper.setMsg(createStatusMessage(getMasterStatus()));
+                    processResponse(cpush(messageMapper.toJson(), headers));
+                    break;
+                }
+                case STATUS: {
+                    LOGGER.warn("#TAG Master [ " + serialNumber + " ]: status required");
                     messageMapper.setMsg(createStatusMessage(getMasterStatus()));
                     processResponse(cpush(messageMapper.toJson(), headers));
                     break;
@@ -455,7 +460,7 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
                     //e.printStackTrace();
                 }
 
-                System.out.println("Master [" + serialNumber + "] - Pusher - LIVE");
+                /*System.out.println("Master [" + serialNumber + "] - Pusher - LIVE");
                 if(connected) {
                     try {
                         Map<String, String> headers = new HashMap<String, String>();
@@ -472,7 +477,7 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
-                }
+                }*/
             }
         }
 

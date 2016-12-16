@@ -26,8 +26,8 @@ public class Request {
 
     /** url for connecting to the cloud service */
     //private final static String URL = "http://localhost:8080";
-    private final static String URL = "http://10.100.100.100:5050";
-    //private final static String URL = "http://ec2-52-67-203-68.sa-east-1.compute.amazonaws.com:5050";
+//    private final static String URL = "http://10.100.100.100:5050";
+    private final static String URL = "http://ec2-52-67-203-68.sa-east-1.compute.amazonaws.com:5050";
 
     private Request(){}
 
@@ -144,6 +144,7 @@ public class Request {
 
     public static HttpResponse<JsonNode> get(final String endpoint, final Map<String, String> headers) {
         try {
+            Unirest.setTimeouts(Integer.MAX_VALUE,Integer.MAX_VALUE);
             return Unirest.get(URL + endpoint).headers(headers).asJson();
         } catch (UnirestException e) {
             e.printStackTrace();
