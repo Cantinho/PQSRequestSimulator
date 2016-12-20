@@ -5,7 +5,7 @@ import br.com.example.statistics.IRequestStatisticallyProfilable;
 import br.com.example.statistics.IStatistics;
 import br.com.example.statistics.RequestStatistics;
 import br.com.processor.*;
-import br.com.processor.mapper.MessageMapper;
+import br.com.processor.mapper.SimpleMessageMapper;
 import com.google.gson.Gson;
 import com.mashape.unirest.http.Headers;
 import com.mashape.unirest.http.HttpResponse;
@@ -20,17 +20,39 @@ import static br.com.example.request.Request.GET;
 import static br.com.example.request.Request.POST;
 import static br.com.example.request.Request.get;
 import static br.com.example.request.Request.post;
-import static br.com.processor.CloudiaMessage.*;
+import static br.com.processor.ComplexMessage.*;
 
 /**
- * Created by jordao on 27/11/16.
+ * Copyright 2016 Cantinho. All Rights Reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ *
+ * @author Samir Trajano Feitosa
+ * @author Jordão Ezequiel Serafim de Araújo
+ * @author Cantinho - Github https://github.com/Cantinho
+ * @since 2016
+ * @license Apache 2.0
+ *
+ * This file is licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.  For additional information regarding
+ * copyright in this work, please see the NOTICE file in the top level
+ * directory of this distribution.
+ *
  */
 public class Master implements IRequestStatisticallyProfilable, ComunicationProtocol {
 
     private final static Logger LOGGER = LoggerFactory.getLogger(Master.class);
     private static int statisticalSequence = 0;
 
-    private String serialNumber;
+    private String masterSN;
     private final int MINIMUM_PULLING_INTERVAL;
     private final int PULLING_OFFSET;
     private final int MINIMUM_PUSHING_INTERVAL;
@@ -51,7 +73,7 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
 
     public Master(String serialNumber, int minimumPullingInterval, int pullingOffset,
                   int minimumPushingInterval, int pushingOffset) {
-        this.serialNumber = serialNumber;
+        this.masterSN = serialNumber;
         this.MINIMUM_PULLING_INTERVAL = minimumPullingInterval;
         this.PULLING_OFFSET = pullingOffset;
         this.MINIMUM_PUSHING_INTERVAL = minimumPushingInterval;
@@ -142,75 +164,75 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
 
 
     /**
-     * executes GET /cpull for centrals
+     * executes GET /mpull for centrals
      * @return
      */
     private synchronized String old_cpull(){
         long startTimestamp = new Date().getTime();
         Map<String, String> headers = new HashMap<String, String>();
-        headers.put("Serial-Number", serialNumber);
+        headers.put("Serial-Number", masterSN);
 
-        String response = GET("/cpull", headers);
+        String response = GET("/mpull", headers);
         long endTimestamp = new Date().getTime();
         synchronized (requestStatisticsList) {
-            RequestStatistics requestStatistics = new RequestStatistics(serialNumber, "cpull", startTimestamp, endTimestamp);
+            RequestStatistics requestStatistics = new RequestStatistics(masterSN, "mpull", startTimestamp, endTimestamp);
             requestStatisticsList.add(requestStatistics);
         }
         return response;
     }
 
     /**
-     * executes GET /cpull for centrals
+     * executes GET /mpull for centrals
      * @return
      */
-    private HttpResponse<JsonNode> cpull(){
+    private HttpResponse<JsonNode> mpull(){
         long startTimestamp = new Date().getTime();
         Map<String, String> headers = new HashMap<String, String>();
-        headers.put("Serial-Number", serialNumber);
+        headers.put("Master-SN", masterSN);
 
-        HttpResponse<JsonNode> response = get("/cpull", headers);
+        HttpResponse<JsonNode> response = get("/mpull", headers);
         long endTimestamp = new Date().getTime();
         synchronized (requestStatisticsList) {
-            RequestStatistics requestStatistics = new RequestStatistics(serialNumber, "cpull", startTimestamp, endTimestamp);
+            RequestStatistics requestStatistics = new RequestStatistics(masterSN, "mpull", startTimestamp, endTimestamp);
             requestStatisticsList.add(requestStatistics);
         }
         return response;
     }
 
-    private HttpResponse<JsonNode> cpush(String body, Map<String, String> headers){
+    private HttpResponse<JsonNode> mpush(String body, Map<String, String> headers){
         long startTimestamp = new Date().getTime();
 
-        HttpResponse<JsonNode> response = post("/cpush", headers, body);
+        HttpResponse<JsonNode> response = post("/mpush", headers, body);
         long endTimestamp = new Date().getTime();
         synchronized (requestStatisticsList) {
-            RequestStatistics requestStatistics = new RequestStatistics(serialNumber, "cpush", startTimestamp, endTimestamp);
+            RequestStatistics requestStatistics = new RequestStatistics(masterSN, "mpush", startTimestamp, endTimestamp);
             requestStatisticsList.add(requestStatistics);
         }
-        LOGGER.warn("Master - cpush - body:" + body);
-        LOGGER.warn("Master - cpush - response:[" + response +"]");
+        LOGGER.warn("Master - mpush - body:" + body);
+        LOGGER.warn("Master - mpush - response:[" + response +"]");
         return response;
     }
 
-    private synchronized String old_cpush(String body, Map<String, String> headers){
+    private synchronized String old_mpush(String body, Map<String, String> headers){
         long startTimestamp = new Date().getTime();
 
-        String response = POST("/cpush", headers, body);
+        String response = POST("/mpush", headers, body);
         long endTimestamp = new Date().getTime();
         synchronized (requestStatisticsList) {
-            RequestStatistics requestStatistics = new RequestStatistics(serialNumber, "cpush", startTimestamp, endTimestamp);
+            RequestStatistics requestStatistics = new RequestStatistics(masterSN, "mpush", startTimestamp, endTimestamp);
             requestStatisticsList.add(requestStatistics);
         }
-        LOGGER.warn("Master - cpush - body:" + body);
-        LOGGER.warn("Master - cpush - response:[" + response +"]");
+        LOGGER.warn("Master - mpush - body:" + body);
+        LOGGER.warn("Master - mpush - response:[" + response +"]");
         return response;
     }
 
-    public String getSerialNumber() {
-        return serialNumber;
+    public String getMasterSN() {
+        return masterSN;
     }
 
-    public void setSerialNumber(String serialNumber) {
-        this.serialNumber = serialNumber;
+    public void setMasterSN(String masterSN) {
+        this.masterSN = masterSN;
     }
 
     public List<IStatistics> collectStatistics() {
@@ -234,7 +256,7 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
                 }
             }
 
-            System.out.println("Master [" + serialNumber + "] - Puller - LIVE");
+            System.out.println("Master [" + masterSN + "] - Puller - LIVE");
             Random rand = new Random();
             int randomInterval = rand.nextInt(pullingOffset + 1);
 
@@ -245,9 +267,9 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
             }
 
 
-            System.out.println("Master ["+serialNumber+"] - Puller - LIVE");
+            System.out.println("Master ["+ masterSN +"] - Puller - LIVE");
             try {
-                processRequest(cpull());
+                processRequest(mpull());
             }catch (Exception e) {
                 e.printStackTrace();
             }
@@ -264,51 +286,50 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
         if(request != null && !request.equals("{}")){
             LOGGER.warn("PROCESS REQUEST:" + request);
 
-            MessageMapper messageMapper = (new Gson()).fromJson(request.getBody().toString(), MessageMapper.class);
-            String applicationID = "";
-            if(messageMapper != null && messageMapper.getMsg() != null && !messageMapper.getMsg().trim().equals("")) System.out.println("PROCESS REQUEST:" + messageMapper.getMsg());
+            SimpleMessageMapper messageMapper = (new Gson()).fromJson(request.getBody().toString(), SimpleMessageMapper.class);
+            String slaveId = "";
+            if(messageMapper != null && messageMapper.getMessage() != null && !messageMapper.getMessage().trim().equals("")) System.out.println("PROCESS REQUEST:" + messageMapper.getMessage());
 
             Map<String, String> headers = new HashMap<String, String>();
             Headers requestHeaders = request.getHeaders();
-            headers.put("Serial-Number", serialNumber);
-            List<String> applicationIdHeader = requestHeaders.get("Application-ID");
-            if(applicationIdHeader != null && !applicationIdHeader.isEmpty()) {
-                applicationID = applicationIdHeader.get(0);
-                headers.put("Application-ID",applicationIdHeader.get(0));
+            headers.put("Master-SN", masterSN);
+            List<String> slaveIdHeader = requestHeaders.get("Slave-ID");
+            if(slaveIdHeader != null && !slaveIdHeader.isEmpty()) {
+                slaveId = slaveIdHeader.get(0);
+                headers.put("Slave-ID", slaveIdHeader.get(0));
             } else {
                 return;
             }
 
             headers.put("Content-Type", "application/json");
-            headers.put("Content-Type", "application/json");
             headers.put("Broadcast", "true");
 
-            if(messageMapper.getMsg() == null || messageMapper.getMsg().trim().isEmpty()){
+            if(messageMapper.getMessage() == null || messageMapper.getMessage().trim().isEmpty()){
                 return;
             }
 
-            IMessageProcessor messageProcessor = new CloudiaMessageProcessor();
-            final CloudiaMessage processedMessage = (CloudiaMessage) messageProcessor.processMessage(messageMapper.getMsg());
+            IMessageProcessor messageProcessor = new ComplexMessageProcessor();
+            final ComplexMessage processedMessage = (ComplexMessage) messageProcessor.processMessage(messageMapper.getMessage());
 
             switch (processedMessage.getCommand()) {
                 case LOCK: {
-                    LOGGER.warn("#TAG Master [ " + serialNumber + " ]: change lock status required to LOCK");
+                    LOGGER.warn("#TAG Master [ " + masterSN + " ]: change lock status required to LOCK");
                     processLock(processedMessage.getData(), true);
-                    messageMapper.setMsg(createStatusMessage(getMasterStatus()));
-                    processResponse(cpush(messageMapper.toJson(), headers));
+                    messageMapper.setMessage(createStatusMessage(getMasterStatus()));
+                    processResponse(mpush(messageMapper.toJson(), headers));
                     break;
                 }
                 case UNLOCK: {
-                    LOGGER.warn("#TAG Master [ " + serialNumber + " ]: change lock status required to UNLOCK");
+                    LOGGER.warn("#TAG Master [ " + masterSN + " ]: change lock status required to UNLOCK");
                     processLock(processedMessage.getData(), false);
-                    messageMapper.setMsg(createStatusMessage(getMasterStatus()));
-                    processResponse(cpush(messageMapper.toJson(), headers));
+                    messageMapper.setMessage(createStatusMessage(getMasterStatus()));
+                    processResponse(mpush(messageMapper.toJson(), headers));
                     break;
                 }
                 case STATUS: {
-                    LOGGER.warn("#TAG Master [ " + serialNumber + " ]: status required");
-                    messageMapper.setMsg(createStatusMessage(getMasterStatus()));
-                    processResponse(cpush(messageMapper.toJson(), headers));
+                    LOGGER.warn("#TAG Master [ " + masterSN + " ]: status required");
+                    messageMapper.setMessage(createStatusMessage(getMasterStatus()));
+                    processResponse(mpush(messageMapper.toJson(), headers));
                     break;
                 }
                 default:
@@ -316,13 +337,13 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
                     break;
             }
 
-            LOGGER.info("PC CENTRAL-SN [" + serialNumber + "] APP-ID [" + applicationID + "]: " + request);
+            LOGGER.info("PC MASTER-SN [" + masterSN + "] SLAVE-ID [" + slaveId + "]: " + request);
         }
     }
 
     @Override
-    public void processRequest(String response) throws Exception {
-        throw new Exception("Not yet implemented");
+    public void processRequest(String response) {
+
     }
 
     @Override
@@ -332,24 +353,24 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
             return;
         }
         LOGGER.warn("Master - processResponse - response:" + response);
-        MessageMapper msg = new Gson().fromJson(response.getBody().toString(), MessageMapper.class);
-        if(msg != null && msg.getMsg() != null && !msg.getMsg().trim().equals("")) System.out.println("PROCESS RESPONSE:" + msg.getMsg());
+        SimpleMessageMapper msg = new Gson().fromJson(response.getBody().toString(), SimpleMessageMapper.class);
+        if(msg != null && msg.getMessage() != null && !msg.getMessage().trim().equals("")) System.out.println("PROCESS RESPONSE:" + msg.getMessage());
         LOGGER.warn("Master - processResponse - msg:" + msg);
-        LOGGER.warn("Master - processResponse - msg.getMsg():" + (msg == null ? "null" : msg.getMsg()));
-        IMessageProcessor messageProcessor = new CloudiaMessageProcessor();
-        final CloudiaMessage processedMessage = (CloudiaMessage) messageProcessor.processMessage(msg.getMsg());
+        LOGGER.warn("Master - processResponse - msg.getMessage():" + (msg == null ? "null" : msg.getMessage()));
+        IMessageProcessor messageProcessor = new ComplexMessageProcessor();
+        final ComplexMessage processedMessage = (ComplexMessage) messageProcessor.processMessage(msg.getMessage());
 
         switch (processedMessage.getCommand()) {
             case DISCONNECT:
-                LOGGER.warn("#TAG Master [ " + serialNumber + " ]: DISCONNECT");
+                LOGGER.warn("#TAG Master [ " + masterSN + " ]: DISCONNECT");
                 processDisconnectResponse(processedMessage.getData());
                 break;
             case CONNECT:
-                LOGGER.warn("#TAG Master [ " + serialNumber + " ]: CONNECT");
+                LOGGER.warn("#TAG Master [ " + masterSN + " ]: CONNECT");
                 processConnectResponse(processedMessage.getData());
                 break;
             case STATUS:
-                LOGGER.warn("#TAG Master [ " + serialNumber + " ]: STATUS");
+                LOGGER.warn("#TAG Master [ " + masterSN + " ]: STATUS");
                 processStatusResponse(processedMessage.getData());
                 break;
             default:
@@ -357,16 +378,18 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
         }
     }
 
+
+
     @Override
-    public void processResponse(String response) throws Exception {
-        throw new Exception("Not yet implemented");
+    public void processResponse(String response) {
+
     }
 
     synchronized String processConnectResponse(final String status) {
         final Integer statusCode = Integer.valueOf(status);
         if(statusCode == 1) {
             connected = true;
-            LOGGER.warn("#TAG Master [ " + serialNumber + " ]: status connection: [ connected ].");
+            LOGGER.warn("#TAG Master [ " + masterSN + " ]: status connection: [ connected ].");
         } else {
             connected = false;
         }
@@ -377,7 +400,7 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
         final Integer statusCode = Integer.valueOf(status);
         if(statusCode == 1) {
             connected = false;
-            LOGGER.warn("#TAG Master [ " + serialNumber + " ]: status connection: [ connected ].");
+            LOGGER.warn("#TAG Master [ " + masterSN + " ]: status connection: [ connected ].");
         }
         return status;
     }
@@ -409,8 +432,8 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
         //byte command
         final String dummyChecksum = String.format("%02X", (byte)(0xFF));
 
-        IMessageProcessor messageProcessor = new CloudiaMessageProcessor();
-        CloudiaMessage cm = new CloudiaMessage("7B", currentSequence, command, data, dummyChecksum);
+        IMessageProcessor messageProcessor = new ComplexMessageProcessor();
+        ComplexMessage cm = new ComplexMessage(ComplexMessage.HEADER, currentSequence, command, data, dummyChecksum);
         cm.recalculateChecksum();
         return messageProcessor.synthMessage(cm);
     }
@@ -460,24 +483,24 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
                     //e.printStackTrace();
                 }
 
-                /*System.out.println("Master [" + serialNumber + "] - Pusher - LIVE");
+                System.out.println("Master [" + masterSN + "] - Pusher - LIVE");
                 if(connected) {
                     try {
                         Map<String, String> headers = new HashMap<String, String>();
-                        headers.put("Serial-Number", serialNumber);
+                        headers.put("Master-SN", masterSN);
                         headers.put("Content-Type", "application/json");
                         headers.put("Broadcast", "true");
 
-                        MessageMapper messageMapper = new MessageMapper();
+                        SimpleMessageMapper messageMapper = new SimpleMessageMapper();
                         locks[new Random().nextInt(2)] = new Random().nextBoolean();
-                        messageMapper.setMsg(createStatusMessage(getMasterStatus()));
+                        messageMapper.setMessage(createStatusMessage(getMasterStatus()));
 
-                        processResponse(cpush(messageMapper.toJson(), headers));
-                        LOGGER.info("PC CENTRAL-SN [" + serialNumber + "] APP-ID [ broadcast ]: " + messageMapper.getMsg());
+                        processResponse(mpush(messageMapper.toJson(), headers));
+                        LOGGER.info("PC MASTER-SN [" + masterSN + "] SLAVE-ID [ broadcast ]: " + messageMapper.getMessage());
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
-                }*/
+                }
             }
         }
 
@@ -488,13 +511,13 @@ public class Master implements IRequestStatisticallyProfilable, ComunicationProt
 
     private HttpResponse<JsonNode> connectToCloudService(){
         Map<String, String> headers = new HashMap<String, String>();
-        headers.put("Serial-Number", serialNumber);
+        headers.put("Master-SN", masterSN);
         headers.put("Content-Type", "application/json");
         HttpResponse<JsonNode> response = null;
         try {
-            MessageMapper messageMapper = new MessageMapper();
-            messageMapper.setMsg(createConnectMessage(""));
-            response = post("/cconn", headers, messageMapper.toJson());
+            SimpleMessageMapper messageMapper = new SimpleMessageMapper();
+            messageMapper.setMessage(createConnectMessage(""));
+            response = post("/mconn", headers, messageMapper.toJson());
         }catch (Exception e){
             e.printStackTrace();
         }
