@@ -24,7 +24,7 @@ public class rs {
         ms = new ArrayList<m>();
         for (int i = 0; i < MASTERS_AMOUNT; i++){
 //            Master master = new Master("SN-"+i);
-            m m = new m("500");
+            m m = new m("300");
             m.init();
             ms.add(m);
             m.start();

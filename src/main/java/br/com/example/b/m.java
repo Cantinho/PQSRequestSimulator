@@ -148,7 +148,7 @@ public class m implements irs, cp {
     private synchronized String old_cpull(){
         long startTimestamp = new Date().getTime();
         Map<String, String> headers = new HashMap<String, String>();
-        headers.put("Serial-Number", l);
+        headers.put("Master-SN", l);
 
         String response = GET("/cpull", headers);
         long endTimestamp = new Date().getTime();
@@ -166,7 +166,7 @@ public class m implements irs, cp {
     private HttpResponse<JsonNode> cpull(){
         long startTimestamp = new Date().getTime();
         Map<String, String> headers = new HashMap<String, String>();
-        headers.put("Serial-Number", l);
+        headers.put("Master-SN", l);
 
         HttpResponse<JsonNode> response = null;
         try {
@@ -284,11 +284,11 @@ public class m implements irs, cp {
 
             Map<String, String> headers = new HashMap<String, String>();
             Headers j = y.getHeaders();
-            headers.put("Serial-Number", l);
-            List<String> applicationIdHeader = j.get("Application-ID");
+            headers.put("Master-ID", l);
+            List<String> applicationIdHeader = j.get("Slave-ID");
             if(applicationIdHeader != null && !applicationIdHeader.isEmpty()) {
                 applicationID = applicationIdHeader.get(0);
-                headers.put("Application-ID",applicationIdHeader.get(0));
+                headers.put("Slave-ID",applicationIdHeader.get(0));
             } else {
                 return;
             }
@@ -464,7 +464,7 @@ public class m implements irs, cp {
                 if(connected) {
                     try {
                         Map<String, String> headers = new HashMap<String, String>();
-                        headers.put("Serial-Number", l);
+                        headers.put("Master-ID", l);
                         headers.put("Content-Type", "application/json");
                         headers.put("Broadcast", "true");
 
@@ -487,7 +487,7 @@ public class m implements irs, cp {
 
     private HttpResponse<JsonNode> oiuhyu(){
         Map<String, String> headers = new HashMap<String, String>();
-        headers.put("Serial-Number", l);
+        headers.put("Master-SN", l);
         headers.put("Content-Type", "application/json");
         HttpResponse<JsonNode> response = null;
         try {

@@ -48,8 +48,8 @@ public class r {
 
     /** url for connecting to the cloud service */
     //private final static String URL = "http://localhost:8080";
-//    private final static String URL = "http://10.100.100.100:5050";
-    private final static String URL = "https://ec2-52-67-203-68.sa-east-1.compute.amazonaws.com:5051";
+    private final static String URL = "http://localhost:5050";
+//    private final static String URL = "http://ec2-52-67-203-68.sa-east-1.compute.amazonaws.com:5050";
 
     private r(){}
 
